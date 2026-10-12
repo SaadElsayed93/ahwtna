@@ -114,8 +114,10 @@ interface WebGameState {
   roundNumber: number;
   matchScore: MatchScore2P;
   matchOver: boolean;
+  openingTile: Tile | null;
   feedEvents: MatchFeedEvent[];
   selectedTile: Tile | null;
+  statusMessage: string;
   modal: {
     title: string;
     subtitle: string;
@@ -135,8 +137,10 @@ const state: WebGameState = {
   roundNumber: 1,
   matchScore: { seat0: 0, seat1: 0 },
   matchOver: false,
+  openingTile: null,
   feedEvents: [],
   selectedTile: null,
+  statusMessage: '',
   modal: null,
 };
 
@@ -163,9 +167,18 @@ function startNewRound() {
 
   if (state.roundNumber === 1) {
     const opener = determineFirstRoundOpener(deal.hands);
+    state.openingTile = opener.startingTile;
     state.currentTurn = opener.starterSeat;
-    addFeedEvent('SYSTEM', `بدء الجولة 1: صاحب أعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}] يبدأ اللعب.`);
+    if (opener.starterSeat === 0) {
+      state.statusMessage = `دورك تفتتح الطاولة بأعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}]!`;
+      addFeedEvent('SYSTEM', `بدء الجولة 1: معك أعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}]! اضغط عليه للبدء.`);
+    } else {
+      state.statusMessage = `عم شكشك معه أعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}] وسيفتتح الطاولة...`;
+      addFeedEvent('SYSTEM', `بدء الجولة 1: عم شكشك معه أعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}] وسيبدأ.`);
+    }
   } else {
+    state.openingTile = null;
+    state.statusMessage = `بدء الجولة ${state.roundNumber}: ${state.currentTurn === 0 ? 'دورك تفتتح الطاولة بأي بلاطة' : 'دور عم شكشك يبدأ'}`;
     addFeedEvent('SYSTEM', `بدء الجولة ${state.roundNumber}: كل لاعب جهز ورقه.`);
   }
 
@@ -222,6 +235,7 @@ function checkEndOfRound(): boolean {
         primaryLabel: 'الجولة التالية',
         onPrimary: () => {
           state.roundNumber++;
+          state.currentTurn = winner;
           startNewRound();
         },
         variant: winner === 0 ? 'success' : 'danger',
@@ -265,6 +279,9 @@ function checkEndOfRound(): boolean {
         primaryLabel: 'الجولة التالية',
         onPrimary: () => {
           state.roundNumber++;
+          if (roundRes.winnerSeat !== undefined) {
+            state.currentTurn = roundRes.winnerSeat;
+          }
           startNewRound();
         },
         variant: 'gold',
@@ -280,6 +297,26 @@ function checkEndOfRound(): boolean {
 function triggerAIMove() {
   if (state.currentTurn !== 1 || state.matchOver) return;
 
+  // إذا كانت الطاولة فارغة في الجولة الأولى: الـ AI يبدأ بقطعة البداية المحددة
+  if (isBoardEmpty(state.board) && state.roundNumber === 1 && state.openingTile) {
+    const starter = state.openingTile;
+    sounds.playSlam();
+    const moveCtx: MoveContext = {
+      phase: 'PLAYING',
+      activeSeat: 1,
+      hand: state.p1Hand,
+      board: state.board,
+    };
+    const moveRes = executePlayerMove(1, starter, 'LEFT', moveCtx);
+    state.board = moveRes.newBoard;
+    state.p1Hand = [...moveRes.newHand];
+    addFeedEvent('PLAY', `عم شكشك افتتح الطاولة بأعلى دوش [${starter[0]}|${starter[1]}]`);
+    state.currentTurn = 0;
+    state.statusMessage = 'دورك الآن — العب بلاطة تطابق أحد طرفي الطاولة!';
+    render();
+    return;
+  }
+
   const decision = chooseAIMove({
     seat: 1,
     hand: state.p1Hand,
@@ -291,23 +328,21 @@ function triggerAIMove() {
   if (decision.action === 'PLAY' && decision.tile && decision.targetEnd) {
     sounds.playSlam();
     const playedTile = decision.tile;
-    const tIndex = state.p1Hand.findIndex((t) => tileEquals(t, playedTile));
-    if (tIndex !== -1) {
-      state.p1Hand.splice(tIndex, 1);
-    }
     const moveCtx: MoveContext = {
       phase: 'PLAYING',
       activeSeat: 1,
-      hand: [...state.p1Hand, playedTile],
+      hand: state.p1Hand,
       board: state.board,
     };
     const moveRes = executePlayerMove(1, playedTile, decision.targetEnd, moveCtx);
     state.board = moveRes.newBoard;
+    state.p1Hand = [...moveRes.newHand];
     addFeedEvent('PLAY', `عم شكشك لعب [${playedTile[0]}|${playedTile[1]}] على ${decision.targetEnd === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
 
     if (checkEndOfRound()) return;
 
     state.currentTurn = 0;
+    state.statusMessage = 'دورك — اختر بلاطة للعب!';
     render();
   } else if (decision.action === 'DRAW') {
     if (state.boneyard.length > 0) {
@@ -315,49 +350,78 @@ function triggerAIMove() {
       const drawn = state.boneyard.pop()!;
       state.p1Hand.push(drawn);
       addFeedEvent('DRAW', 'عم شكشك سحب بلاطة من المخزون');
+      state.statusMessage = 'عم شكشك سحب بلاطة...';
       render();
       setTimeout(triggerAIMove, 700);
     } else {
       addFeedEvent('PASS', 'عم شكشك باصى لعدم وجود قطع في المخزون');
       state.currentTurn = 0;
+      state.statusMessage = 'عم شكشك باصى! الدور عندك.';
       render();
     }
   } else if (decision.action === 'PASS') {
     addFeedEvent('PASS', 'عم شكشك باصى (تمرير الدور)');
     state.currentTurn = 0;
+    state.statusMessage = 'عم شكشك مرر الدور! دورك للعب.';
     render();
   }
 }
 
 function handleTileClick(tile: Tile) {
-  if (state.currentTurn !== 0 || state.matchOver) return;
+  if (state.matchOver) return;
+
+  if (state.currentTurn !== 0) {
+    state.statusMessage = 'انتظر دورك! عم شكشك بيفكر في نقلته...';
+    render();
+    return;
+  }
+
+  // في الجولة الأولى والطاولة فارغة: يجب البدء بقطعة البداية المعتمدة
+  if (state.roundNumber === 1 && isBoardEmpty(state.board) && state.openingTile) {
+    if (!tileEquals(tile, state.openingTile)) {
+      state.statusMessage = `قواعد الدومينو: لازم تبدأ بأعلى دوش معاك [${state.openingTile[0]}|${state.openingTile[1]}]!`;
+      addFeedEvent('SYSTEM', `تنبيه: لازم تلعب [${state.openingTile[0]}|${state.openingTile[1]}] لافتتاح الجولة.`);
+      render();
+      return;
+    }
+    playPlayerTile(tile, 'LEFT');
+    return;
+  }
+
+  // إذا كانت الطاولة فارغة في أي جولة تالية
+  if (isBoardEmpty(state.board)) {
+    playPlayerTile(tile, 'LEFT');
+    return;
+  }
 
   const ends = getPlayableEnds(tile, state.board);
-  if (ends.length === 0) return;
+  if (ends.length === 0) {
+    state.statusMessage = `البلاطة [${tile[0]}|${tile[1]}] لا تطابق أي طرف مفتوح (${state.board.leftValue} أو ${state.board.rightValue}).`;
+    render();
+    return;
+  }
 
   if (ends.length === 1) {
     playPlayerTile(tile, ends[0]!);
   } else {
-    // تناسب كلا الطرفين: نعرض خياراً لاختيار الطرف
+    // تطابق كلا الطرفين: نعرض نافذة الاختيار
     state.selectedTile = tile;
+    state.statusMessage = `اختر الطرف المطلوب للعب [${tile[0]}|${tile[1]}]`;
     render();
   }
 }
 
 function playPlayerTile(tile: Tile, end: BoardEnd) {
   sounds.playSlam();
-  const idx = state.p0Hand.findIndex((t) => tileEquals(t, tile));
-  if (idx !== -1) {
-    state.p0Hand.splice(idx, 1);
-  }
   const moveCtx: MoveContext = {
     phase: 'PLAYING',
     activeSeat: 0,
-    hand: [...state.p0Hand, tile],
+    hand: state.p0Hand,
     board: state.board,
   };
   const moveRes = executePlayerMove(0, tile, end, moveCtx);
   state.board = moveRes.newBoard;
+  state.p0Hand = [...moveRes.newHand];
   state.selectedTile = null;
 
   addFeedEvent('PLAY', `أنت لعبت [${tile[0]}|${tile[1]}] على ${end === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
@@ -365,6 +429,7 @@ function playPlayerTile(tile: Tile, end: BoardEnd) {
   if (checkEndOfRound()) return;
 
   state.currentTurn = 1;
+  state.statusMessage = 'عم شكشك يفكر في نقلته...';
   render();
   setTimeout(triggerAIMove, 900);
 }
@@ -377,6 +442,7 @@ function handlePlayerDraw() {
   const drawn = state.boneyard.pop()!;
   state.p0Hand.push(drawn);
   addFeedEvent('DRAW', `سحبت بلاطة [${drawn[0]}|${drawn[1]}] من المخزون`);
+  state.statusMessage = `سحبت [${drawn[0]}|${drawn[1]}] — هل تناسب اللعب الآن؟`;
 
   render();
 }
@@ -385,6 +451,7 @@ function handlePlayerPass() {
   if (state.currentTurn !== 0 || state.matchOver) return;
   addFeedEvent('PASS', 'أنت مررت الدور (باص)');
   state.currentTurn = 1;
+  state.statusMessage = 'مررت الدور — عم شكشك يلعب...';
   render();
   setTimeout(triggerAIMove, 900);
 }
@@ -394,8 +461,16 @@ function render() {
   const app = document.getElementById('app');
   if (!app) return;
 
-  // هل يملك اللاعب حركة قانونية؟
-  const hasLegalMove = state.p0Hand.some((t) => getPlayableEnds(t, state.board).length > 0);
+  // فحص النقلات القانونية
+  let hasLegalMove = false;
+  if (isBoardEmpty(state.board)) {
+    hasLegalMove = state.roundNumber === 1 && state.openingTile
+      ? state.p0Hand.some((t) => tileEquals(t, state.openingTile!))
+      : state.p0Hand.length > 0;
+  } else {
+    hasLegalMove = state.p0Hand.some((t) => getPlayableEnds(t, state.board).length > 0);
+  }
+
   const canDraw = state.currentTurn === 0 && !hasLegalMove && state.boneyard.length > 0;
   const canPass = state.currentTurn === 0 && !hasLegalMove && state.boneyard.length === 0;
 
@@ -437,8 +512,8 @@ function render() {
   let chainHtml = '';
   if (isBoardEmpty(state.board)) {
     chainHtml = `
-      <div style="color: ${AHWA_COLORS.paleGold}; opacity: 0.7; font-size: 16px; margin: auto; text-align: center;">
-        الطاولة جاهزة... بانتظار أول بلاطة
+      <div style="color: ${AHWA_COLORS.paleGold}; opacity: 0.85; font-size: 16px; margin: auto; text-align: center; background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 12px; border: 1px dashed rgba(212,175,55,0.4);">
+        🪑 الطاولة خالية... بانتظار أول بلاطة لافتتاح السلسلة!
       </div>
     `;
   } else {
@@ -459,8 +534,17 @@ function render() {
   // قطع يد اللاعب
   const handHtml = state.p0Hand
     .map((tile) => {
-      const ends = getPlayableEnds(tile, state.board);
-      const isPlayable = state.currentTurn === 0 && ends.length > 0;
+      let isPlayable = false;
+      if (state.currentTurn === 0) {
+        if (isBoardEmpty(state.board)) {
+          isPlayable = state.roundNumber === 1 && state.openingTile
+            ? tileEquals(tile, state.openingTile)
+            : true;
+        } else {
+          isPlayable = getPlayableEnds(tile, state.board).length > 0;
+        }
+      }
+
       const isSelected = state.selectedTile ? tileEquals(state.selectedTile, tile) : false;
       const tileState: TileState = isSelected ? 'selected' : isPlayable ? 'playable' : 'disabled';
       const tileIdStr = toTileId(tile);
@@ -475,7 +559,9 @@ function render() {
       });
 
       return `
-        <div class="user-hand-tile-wrapper" data-id="${tileIdStr}" style="cursor: ${isPlayable ? 'pointer' : 'default'}">
+        <div class="user-hand-tile-wrapper ${isPlayable ? 'is-clickable' : ''}"
+             data-id="${tileIdStr}"
+             style="cursor: ${isPlayable ? 'pointer' : 'not-allowed'}; touch-action: manipulation; transition: transform 0.15s ease;">
           ${tileMarkup}
         </div>
       `;
@@ -527,13 +613,13 @@ function render() {
   let chooseEndDialogHtml = '';
   if (state.selectedTile && state.board.leftValue !== null && state.board.rightValue !== null) {
     chooseEndDialogHtml = `
-      <div style="position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
-                  background: ${AHWA_COLORS.walnutWood}; padding: 14px 20px; border-radius: 12px;
-                  border: 2px solid ${AHWA_COLORS.warmGold}; box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+      <div style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+                  background: ${AHWA_COLORS.walnutWood}; padding: 14px 20px; border-radius: 14px;
+                  border: 2px solid ${AHWA_COLORS.warmGold}; box-shadow: 0 8px 30px rgba(0,0,0,0.85);
                   display: flex; gap: 12px; align-items: center; z-index: 100;">
-        <span style="font-weight: 700; color: ${AHWA_COLORS.creamPaper};">العب [${state.selectedTile[0]}|${state.selectedTile[1]}] على:</span>
-        <button id="btn-play-left" class="ahwa-btn ahwa-btn-gold ahwa-btn-sm">الطرف الأيمن (${state.board.leftValue})</button>
-        <button id="btn-play-right" class="ahwa-btn ahwa-btn-gold ahwa-btn-sm">الطرف الأيسر (${state.board.rightValue})</button>
+        <span style="font-weight: 700; color: ${AHWA_COLORS.creamPaper}; font-size: 15px;">العب [${state.selectedTile[0]}|${state.selectedTile[1]}] على:</span>
+        <button id="btn-play-left" class="ahwa-btn ahwa-btn-gold ahwa-btn-md">الطرف الأيمن (${state.board.leftValue})</button>
+        <button id="btn-play-right" class="ahwa-btn ahwa-btn-gold ahwa-btn-md">الطرف الأيسر (${state.board.rightValue})</button>
         <button id="btn-cancel-select" class="ahwa-btn ahwa-btn-wood ahwa-btn-sm">إلغاء</button>
       </div>
     `;
@@ -566,6 +652,13 @@ function render() {
         </div>
       </div>
 
+      <!-- بانر حالة اللعب الحالي -->
+      <div style="background: rgba(0,0,0,0.35); border: 1.5px solid ${state.currentTurn === 0 ? AHWA_COLORS.warmGold : 'rgba(255,255,255,0.15)'};
+                  border-radius: 10px; padding: 10px 18px; text-align: center; font-size: 15px; font-weight: 700;
+                  color: ${state.currentTurn === 0 ? AHWA_COLORS.paleGold : '#aaa'}; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        📢 ${state.statusMessage || (state.currentTurn === 0 ? 'دورك للعب!' : 'دور الخصم...')}
+      </div>
+
       <!-- طاولة اللعب التراثية -->
       <div style="flex: 1; min-height: 420px; background: radial-gradient(circle, ${AHWA_COLORS.tableGreen} 0%, ${AHWA_COLORS.darkGreen} 100%);
                   border: 8px solid ${AHWA_COLORS.walnutWood}; border-radius: 20px;
@@ -574,10 +667,10 @@ function render() {
         
         <!-- الأطراف المفتوحة -->
         ${!isBoardEmpty(state.board) ? `
-          <div style="position: absolute; top: 12px; left: 24px; display: flex; gap: 16px; font-size: 13px; color: ${AHWA_COLORS.paleGold}; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 20px;">
-            <span>الطرف الأيمن: <strong>${state.board.leftValue}</strong></span>
+          <div style="position: absolute; top: 12px; left: 24px; display: flex; gap: 16px; font-size: 14px; color: ${AHWA_COLORS.paleGold}; background: rgba(0,0,0,0.55); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(212,175,55,0.3);">
+            <span>الطرف الأيمن: <strong style="color: ${AHWA_COLORS.warmGold}; font-size: 16px;">${state.board.leftValue}</strong></span>
             <span>|</span>
-            <span>الطرف الأيسر: <strong>${state.board.rightValue}</strong></span>
+            <span>الطرف الأيسر: <strong style="color: ${AHWA_COLORS.warmGold}; font-size: 16px;">${state.board.rightValue}</strong></span>
           </div>
         ` : ''}
 
@@ -590,7 +683,7 @@ function render() {
       </div>
 
       <!-- صينية قطع اللاعب وأزرار التحكم -->
-      <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; border: 1px solid rgba(212, 175, 55, 0.2);">
+      <div style="background: rgba(0,0,0,0.35); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; border: 1.5px solid rgba(212, 175, 55, 0.25);">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           ${playerIndicatorHtml}
           <div style="display: flex; gap: 10px; align-items: center;">
@@ -600,7 +693,7 @@ function render() {
         </div>
 
         <!-- قطع اليد -->
-        <div style="display: flex; gap: 10px; overflow-x: auto; padding: 8px 4px; justify-content: center; align-items: center; min-height: 120px;">
+        <div style="display: flex; gap: 12px; overflow-x: auto; padding: 12px 6px; justify-content: center; align-items: center; min-height: 125px;">
           ${handHtml}
         </div>
       </div>
@@ -620,12 +713,13 @@ function render() {
   document.getElementById('btn-restart')?.addEventListener('click', resetMatch);
 
   document.querySelectorAll('.user-hand-tile-wrapper').forEach((el) => {
-    el.addEventListener('click', () => {
-      const tileId = el.getAttribute('data-id');
-      const tile = state.p0Hand.find((t) => toTileId(t) === tileId);
-      if (tile) {
-        handleTileClick(tile);
-      }
+    const tileId = el.getAttribute('data-id');
+    const tile = state.p0Hand.find((t) => toTileId(t) === tileId);
+    if (!tile) return;
+
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleTileClick(tile);
     });
   });
 
