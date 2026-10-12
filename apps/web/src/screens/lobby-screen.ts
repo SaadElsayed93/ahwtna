@@ -13,7 +13,8 @@ export interface LobbyScreenCallbacks {
 export function renderLobbyScreen(
   room: RoomPublicState,
   myPlayer: RoomPlayer | null,
-  _callbacks?: Partial<LobbyScreenCallbacks>
+  _callbacks?: Partial<LobbyScreenCallbacks>,
+  audioControlsHtml?: string
 ): string {
   const is2P = room.mode === 'INDIVIDUAL_2P';
   const totalSeats = is2P ? 2 : 4;
@@ -127,18 +128,21 @@ export function renderLobbyScreen(
           </div>
         </div>
 
-        <!-- كود الغرفة وزر النسخ -->
-        <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.5); padding: 6px 14px;
-                    border-radius: 12px; border: 1.5px solid ${AHWA_COLORS.warmGold};">
-          <span style="font-size: 12px; color: ${AHWA_COLORS.paleGold}; font-weight: 700;">كود الغرفة:</span>
-          <span id="room-code-badge" style="font-family: monospace; font-size: 22px; font-weight: 900; letter-spacing: 2px;
-                        color: #FFF; background: #0D3B2E; padding: 2px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">
-            ${room.roomId}
-          </span>
-          <button id="btn-copy-code" style="background: ${AHWA_COLORS.warmGold}; color: #000; border: none; border-radius: 6px;
-                         padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; transition: transform 0.1s ease;">
-            📋 نسخ
-          </button>
+        <!-- أدوات الصوت والاهتزاز وكود الغرفة -->
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          ${audioControlsHtml || ''}
+          <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.5); padding: 6px 14px;
+                      border-radius: 12px; border: 1.5px solid ${AHWA_COLORS.warmGold};">
+            <span style="font-size: 12px; color: ${AHWA_COLORS.paleGold}; font-weight: 700;">كود الغرفة:</span>
+            <span id="room-code-badge" style="font-family: monospace; font-size: 22px; font-weight: 900; letter-spacing: 2px;
+                          color: #FFF; background: #0D3B2E; padding: 2px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">
+              ${room.roomId}
+            </span>
+            <button id="btn-copy-code" style="background: ${AHWA_COLORS.warmGold}; color: #000; border: none; border-radius: 6px;
+                            padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; transition: transform 0.1s ease;">
+              📋 نسخ
+            </button>
+          </div>
         </div>
       </header>
 

@@ -3,7 +3,7 @@
 > **منصة ألعاب اجتماعية عربية بروح ودفء القهوة المصرية الأصيلة**  
 > أولى الألعاب التأسيسية: **دومينو 101 (Domino 101)**
 
-[![CI Status](https://img.shields.io/badge/Tests-144%2F144%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
+[![CI Status](https://img.shields.io/badge/Tests-157%2F157%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![Build](https://img.shields.io/badge/Build-Passing-0D3B2E.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict%20100%25-D4AF37.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-SaadElsayed93%2Fahwtna-blue.svg)](https://github.com/SaadElsayed93/ahwtna)
@@ -138,7 +138,7 @@ npm run play
 ```bash
 npm run test
 ```
-> يُشغل جميع الـ 103 اختباراً آلياً عبر الحزم الخمس بواسطة Turborepo و Vitest بنسبة نجاح 100%.
+> يُشغل جميع الـ 157 اختباراً آلياً عبر الحزم الخمس بواسطة Turborepo و Vitest بنسبة نجاح 100%.
 
 ### 6. فحص الأنواع الصارم وتجميع الكود
 ```bash
@@ -164,7 +164,7 @@ npm run build       # بناء الكود المصدري لجميع الحزم
 | **Stage 9** | **Authoritative Game Server & Rooms** (`apps/server` مع Fastify و Socket.IO وأكواد الغرف والمقاعد) | ✅ مكتمل | 21/21 Tests Passing |
 | **Stage 10** | **Real-time Socket Synchronization & Anti-Cheat** (`apps/server` مع مؤقت الـ 30 ثانية ونافذة الـ 45 ثانية ومكافحة الغش) | ✅ مكتمل | 31/31 Tests Passing |
 | **Stage 11** | **Multiplayer Web Client Integration** (`apps/web` مع السوكت وشاشة اللوبي ومؤقت الـ 30ث وشريط الأحداث) | ✅ مكتمل | 27/27 Tests Passing |
-| **Stage 12** | **Audio Ambiance, Haptics & PWA Polish** | ⬜ جاهز للبدء | لم تُشغّل بعد |
+| **Stage 12** | **Egyptian Audio Ambiance, Haptics & PWA Polish** (`apps/web` مع Web Audio وخبطة الدومينو والشاي والاهتزاز وPWA الكامل) | ✅ مكتمل | 40/40 Tests Passing |
 | **Stage 13** | **Playwright E2E Automation & Master Release Gate** | ⬜ لم يبدأ | لم تُشغّل بعد |
 
 ---

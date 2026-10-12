@@ -27,130 +27,63 @@ import { OfflineGameController, type SoundEffect } from './controllers/offline-g
 import { OnlineGameClient } from './controllers/online-game-client.js';
 import { renderHomeScreen, type HomeScreenState } from './screens/home-screen.js';
 import { renderLobbyScreen } from './screens/lobby-screen.js';
+import { soundEngine } from './audio/sound-engine.js';
+
+// تسجيل Service Worker للـ PWA للتشغيل بدون إنترنت والتخزين المؤقت
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 // حقن الأنماط التراثية للقهوة المصرية
 injectAhwaStyles();
 
 const toTileId = (t: Tile): string => `${t[0]}|${t[1]}`;
 
-// محرك المؤثرات الصوتية (Web Audio API)
-class SoundEngine {
-  private ctx: AudioContext | null = null;
-
-  private init() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AudioCtx();
-    }
-  }
-
-  playSlam() {
-    this.init();
-    if (!this.ctx) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(140, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.09);
-    gain.gain.setValueAtTime(0.85, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.09);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start();
-    osc.stop(this.ctx.currentTime + 0.1);
-  }
-
-  playDraw() {
-    this.init();
-    if (!this.ctx) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(340, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start();
-    osc.stop(this.ctx.currentTime + 0.13);
-  }
-
-  playPass() {
-    this.init();
-    if (!this.ctx) return;
-    // نقرة خشبية مزدوجة تحاكي خبطة اليد على الطاولة للتمرير
-    [0, 0.08].forEach((delay) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(180, this.ctx!.currentTime + delay);
-      osc.frequency.exponentialRampToValueAtTime(80, this.ctx!.currentTime + delay + 0.04);
-      gain.gain.setValueAtTime(0.3, this.ctx!.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx!.currentTime + delay + 0.04);
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-      osc.start(this.ctx!.currentTime + delay);
-      osc.stop(this.ctx!.currentTime + delay + 0.05);
-    });
-  }
-
-  playWin() {
-    this.init();
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    [440, 554, 659, 880].forEach((freq, idx) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      osc.frequency.setValueAtTime(freq, now + idx * 0.1);
-      gain.gain.setValueAtTime(0.5, now + idx * 0.1);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.25);
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-      osc.start(now + idx * 0.1);
-      osc.stop(now + idx * 0.1 + 0.26);
-    });
-  }
-
-  playBlock() {
-    this.init();
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    [120, 90, 60].forEach((freq, idx) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.07);
-      gain.gain.setValueAtTime(0.6, now + idx * 0.07);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.07 + 0.15);
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-      osc.start(now + idx * 0.07);
-      osc.stop(now + idx * 0.07 + 0.16);
-    });
+function playSoundByEvent(sound: SoundEffect) {
+  soundEngine.play(sound);
+  if (sound === 'slam') {
+    soundEngine.triggerHaptic('light');
+  } else if (sound === 'win') {
+    soundEngine.triggerHaptic('win');
+  } else if (sound === 'block') {
+    soundEngine.triggerHaptic('heavy');
   }
 }
 
-const sounds = new SoundEngine();
+// أزرار التحكم بالصوت والاهتزاز في الهيدر
+function renderAudioControlsHtml(): string {
+  const isMuted = soundEngine.getIsMuted();
+  const hapticsEnabled = soundEngine.getHapticsEnabled();
 
-function playSoundByEvent(sound: SoundEffect) {
-  switch (sound) {
-    case 'slam':
-      sounds.playSlam();
-      break;
-    case 'draw':
-      sounds.playDraw();
-      break;
-    case 'pass':
-      sounds.playPass();
-      break;
-    case 'win':
-      sounds.playWin();
-      break;
-    case 'block':
-      sounds.playBlock();
-      break;
-  }
+  return `
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <button id="btn-toggle-sound" title="${isMuted ? 'تشغيل المؤثرات الصوتية' : 'كتم الصوت'}"
+              style="background: rgba(0,0,0,0.5); border: 1.5px solid ${isMuted ? '#C62828' : 'rgba(212,175,55,0.45)'};
+                     color: ${isMuted ? '#FF8A80' : AHWA_COLORS.warmGold}; border-radius: 9px; padding: 5px 10px; font-size: 14px;
+                     cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;">
+        <span>${isMuted ? '🔇' : '🔊'}</span>
+      </button>
+      <button id="btn-toggle-haptics" title="${hapticsEnabled ? 'تعطيل الاهتزاز' : 'تفعيل الاهتزاز التفاعلي'}"
+              style="background: rgba(0,0,0,0.5); border: 1.5px solid ${hapticsEnabled ? 'rgba(212,175,55,0.45)' : 'rgba(255,255,255,0.2)'};
+                     color: ${hapticsEnabled ? AHWA_COLORS.warmGold : '#888'}; border-radius: 9px; padding: 5px 10px; font-size: 14px;
+                     cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s ease;">
+        <span>${hapticsEnabled ? '📳' : '📴'}</span>
+      </button>
+    </div>
+  `;
+}
+
+function bindAudioControls(): void {
+  document.getElementById('btn-toggle-sound')?.addEventListener('click', () => {
+    soundEngine.toggleMute();
+    render();
+  });
+  document.getElementById('btn-toggle-haptics')?.addEventListener('click', () => {
+    soundEngine.toggleHaptics();
+    render();
+  });
 }
 
 // إدارة شاشات التطبيق
@@ -159,6 +92,8 @@ let currentScreen: AppScreen = 'HOME';
 let gameModeType: 'OFFLINE' | 'ONLINE' = 'OFFLINE';
 let isScoreBoardOpen = false;
 let onlineSelectedTile: Tile | null = null;
+let lastOfflineTurn: SeatIndex | null = null;
+let lastOnlineTurn: SeatIndex | null = null;
 
 const homeState: HomeScreenState = {
   playerName: typeof localStorage !== 'undefined' ? (localStorage.getItem('ahwtna_player_name') || 'صبحي') : 'صبحي',
@@ -248,7 +183,10 @@ function renderHomeView(app: HTMLElement) {
         alert(err instanceof Error ? err.message : String(err));
       }
     },
-  });
+  }, renderAudioControlsHtml());
+
+  // ربط أزرار الصوت والاهتزاز
+  bindAudioControls();
 
   // ربط أحداث الشاشة الرئيسية
   document.getElementById('btn-open-edit-name')?.addEventListener('click', () => {
@@ -373,7 +311,8 @@ function renderLobbyView(app: HTMLElement) {
     return;
   }
 
-  app.innerHTML = renderLobbyScreen(onlineClient.currentRoom, onlineClient.myPlayer);
+  app.innerHTML = renderLobbyScreen(onlineClient.currentRoom, onlineClient.myPlayer, {}, renderAudioControlsHtml());
+  bindAudioControls();
 
   document.getElementById('btn-leave-lobby')?.addEventListener('click', async () => {
     try {
@@ -424,6 +363,11 @@ function renderDominoTableView(app: HTMLElement) {
 
   const userHand = controller.hands[0];
   const isUserTurn = controller.currentTurn === 0 && !controller.matchOver;
+
+  if (isUserTurn && lastOfflineTurn !== 0) {
+    soundEngine.triggerHaptic('turn');
+  }
+  lastOfflineTurn = controller.currentTurn;
 
   // فحص النقلات القانونية المتاحة ليد اللاعب
   let hasLegalMove = false;
@@ -807,8 +751,9 @@ function renderDominoTableView(app: HTMLElement) {
         <span style="color: ${AHWA_COLORS.creamPaper}; opacity: 0.8; font-size: 13px;">${DOMINO_VOCABULARY.tagline}</span>
       </div>
 
-      <!-- زر الرجوع للقهوة وشارة نمط اللعب وزر ماتش جديد -->
+      <!-- زر الرجوع للقهوة وأدوات الصوت وشارة نمط اللعب وزر ماتش جديد -->
       <div style="display: flex; align-items: center; gap: 10px;">
+        ${renderAudioControlsHtml()}
         <button id="btn-back-to-home" style="background: rgba(0,0,0,0.5); color: ${AHWA_COLORS.warmGold};
                 border: 1.5px solid rgba(212,175,55,0.45); border-radius: 9px; padding: 6px 14px; font-weight: 800;
                 font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
@@ -913,6 +858,7 @@ function renderDominoTableView(app: HTMLElement) {
   `;
 
   // ربط الأحداث
+  bindAudioControls();
   document.getElementById('btn-draw')?.addEventListener('click', () => controller.handlePlayerDraw());
   document.getElementById('btn-pass')?.addEventListener('click', () => controller.handlePlayerPass());
   document.getElementById('btn-restart')?.addEventListener('click', () => controller.resetMatch());
@@ -1010,6 +956,11 @@ function renderOnlineDominoTableView(app: HTMLElement) {
   const mySeat = view.mySeat;
   const userHand = view.myHand;
   const isUserTurn = view.currentTurnSeat === mySeat && view.phase === 'PLAYING';
+
+  if (isUserTurn && lastOnlineTurn !== mySeat) {
+    soundEngine.triggerHaptic('turn');
+  }
+  lastOnlineTurn = view.currentTurnSeat;
   const is2P = (onlineClient.currentRoom?.mode ?? 'INDIVIDUAL_2P') === 'INDIVIDUAL_2P';
 
   const canDraw = isUserTurn && view.canDraw;
@@ -1383,6 +1334,7 @@ function renderOnlineDominoTableView(app: HTMLElement) {
       </div>
 
       <div style="display: flex; align-items: center; gap: 10px;">
+        ${renderAudioControlsHtml()}
         <button id="btn-online-back-home" style="background: rgba(0,0,0,0.5); color: ${AHWA_COLORS.warmGold};
                 border: 1.5px solid rgba(212,175,55,0.45); border-radius: 9px; padding: 6px 14px; font-weight: 800;
                 font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
@@ -1481,6 +1433,7 @@ function renderOnlineDominoTableView(app: HTMLElement) {
   `;
 
   // ربط أحداث الأزرار الأونلاين
+  bindAudioControls();
   document.getElementById('btn-online-draw')?.addEventListener('click', async () => {
     try {
       await onlineClient.sendDrawTile();

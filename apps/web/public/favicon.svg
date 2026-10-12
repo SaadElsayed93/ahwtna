@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="ahwaBg" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#1B5E47"/>
+      <stop offset="100%" stop-color="#081E17"/>
+    </radialGradient>
+    <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5D77F"/>
+      <stop offset="50%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#8C6D1F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- القرص الخارجي الذهبي للقهوة -->
+  <circle cx="32" cy="32" r="30" fill="url(#ahwaBg)" stroke="url(#goldRim)" stroke-width="2.5"/>
+  <circle cx="32" cy="32" r="27.5" fill="none" stroke="rgba(212,175,55,0.4)" stroke-width="0.8" stroke-dasharray="2,2"/>
+
+  <!-- بلاطة الدومينو العاجية [6|6] (الدش) -->
+  <g transform="translate(18, 10)">
+    <rect x="0" y="0" width="28" height="44" rx="4" fill="#FFFFF2" stroke="#D4AF37" stroke-width="1.2" filter="drop-shadow(0 2px 5px rgba(0,0,0,0.6))"/>
+    <line x1="2" y1="22" x2="26" y2="22" stroke="#8C6D1F" stroke-width="1"/>
+    <!-- دبوس النحاس التراثي -->
+    <circle cx="14" cy="22" r="1.5" fill="#D4AF37" stroke="#5C4510" stroke-width="0.5"/>
+
+    <!-- نقاط النصف العلوي (6 نقاط) -->
+    <circle cx="7" cy="6" r="1.6" fill="#1A1A1A"/>
+    <circle cx="21" cy="6" r="1.6" fill="#1A1A1A"/>
+    <circle cx="7" cy="11" r="1.6" fill="#1A1A1A"/>
+    <circle cx="21" cy="11" r="1.6" fill="#1A1A1A"/>
+    <circle cx="7" cy="16" r="1.6" fill="#1A1A1A"/>
+    <circle cx="21" cy="16" r="1.6" fill="#1A1A1A"/>
+
+    <!-- نقاط النصف السفلي (6 نقاط) -->
+    <circle cx="7" cy="28" r="1.6" fill="#1A1A1A"/>
+    <circle cx="21" cy="28" r="1.6" fill="#1A1A1A"/>
+    <circle cx="7" cy="33" r="1.6" fill="#1A1A1A"/>
+    <circle cx="21" cy="33" r="1.6" fill="#1A1A1A"/>
+    <circle cx="7" cy="38" r="1.6" fill="#1A1A1A"/>
+    <circle cx="21" cy="38" r="1.6" fill="#1A1A1A"/>
+  </g>
+</svg>

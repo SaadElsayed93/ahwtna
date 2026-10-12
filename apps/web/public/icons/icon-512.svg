@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="ahwaBg512" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#1B5E47"/>
+      <stop offset="100%" stop-color="#081E17"/>
+    </radialGradient>
+    <linearGradient id="goldRim512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5D77F"/>
+      <stop offset="50%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#8C6D1F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- خلفية القرص الدائري التراثي الكبير -->
+  <circle cx="256" cy="256" r="240" fill="url(#ahwaBg512)" stroke="url(#goldRim512)" stroke-width="16"/>
+  <circle cx="256" cy="256" r="220" fill="none" stroke="rgba(212,175,55,0.45)" stroke-width="5" stroke-dasharray="14,10"/>
+
+  <!-- بلاطة الدومينو العاجية [6|6] (الدش) -->
+  <g transform="translate(156, 86)">
+    <rect x="0" y="0" width="200" height="340" rx="30" fill="#FFFFF2" stroke="#D4AF37" stroke-width="8" filter="drop-shadow(0 16px 36px rgba(0,0,0,0.7))"/>
+    <line x1="16" y1="170" x2="184" y2="170" stroke="#8C6D1F" stroke-width="6"/>
+    <circle cx="100" cy="170" r="11" fill="#D4AF37" stroke="#5C4510" stroke-width="3"/>
+
+    <!-- نقاط النصف العلوي -->
+    <circle cx="50" cy="48" r="11" fill="#1A1A1A"/>
+    <circle cx="150" cy="48" r="11" fill="#1A1A1A"/>
+    <circle cx="50" cy="88" r="11" fill="#1A1A1A"/>
+    <circle cx="150" cy="88" r="11" fill="#1A1A1A"/>
+    <circle cx="50" cy="128" r="11" fill="#1A1A1A"/>
+    <circle cx="150" cy="128" r="11" fill="#1A1A1A"/>
+
+    <!-- نقاط النصف السفلي -->
+    <circle cx="50" cy="212" r="11" fill="#1A1A1A"/>
+    <circle cx="150" cy="212" r="11" fill="#1A1A1A"/>
+    <circle cx="50" cy="252" r="11" fill="#1A1A1A"/>
+    <circle cx="150" cy="252" r="11" fill="#1A1A1A"/>
+    <circle cx="50" cy="292" r="11" fill="#1A1A1A"/>
+    <circle cx="150" cy="292" r="11" fill="#1A1A1A"/>
+  </g>
+</svg>

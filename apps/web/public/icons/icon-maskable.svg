@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="maskableBg" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#1B5E47"/>
+      <stop offset="100%" stop-color="#081E17"/>
+    </radialGradient>
+  </defs>
+
+  <!-- الخلفية الكاملة بدون حواف مقصوصة لتناسب الماسك بأي شكل (مربع، دائري، بيضاوي) -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#maskableBg)"/>
+
+  <!-- بلاطة الدومينو داخل المنطقة الآمنة (Safe Zone) -->
+  <g transform="translate(176, 116)">
+    <rect x="0" y="0" width="160" height="280" rx="24" fill="#FFFFF2" stroke="#D4AF37" stroke-width="7" filter="drop-shadow(0 10px 24px rgba(0,0,0,0.75))"/>
+    <line x1="12" y1="140" x2="148" y2="140" stroke="#8C6D1F" stroke-width="5"/>
+    <circle cx="80" cy="140" r="9" fill="#D4AF37" stroke="#5C4510" stroke-width="2.5"/>
+
+    <!-- نقاط النصف العلوي -->
+    <circle cx="40" cy="40" r="9" fill="#1A1A1A"/>
+    <circle cx="120" cy="40" r="9" fill="#1A1A1A"/>
+    <circle cx="40" cy="74" r="9" fill="#1A1A1A"/>
+    <circle cx="120" cy="74" r="9" fill="#1A1A1A"/>
+    <circle cx="40" cy="108" r="9" fill="#1A1A1A"/>
+    <circle cx="120" cy="108" r="9" fill="#1A1A1A"/>
+
+    <!-- نقاط النصف السفلي -->
+    <circle cx="40" cy="172" r="9" fill="#1A1A1A"/>
+    <circle cx="120" cy="172" r="9" fill="#1A1A1A"/>
+    <circle cx="40" cy="206" r="9" fill="#1A1A1A"/>
+    <circle cx="120" cy="206" r="9" fill="#1A1A1A"/>
+    <circle cx="40" cy="240" r="9" fill="#1A1A1A"/>
+    <circle cx="120" cy="240" r="9" fill="#1A1A1A"/>
+  </g>
+</svg>

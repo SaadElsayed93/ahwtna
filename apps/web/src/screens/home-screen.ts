@@ -30,7 +30,8 @@ export const EGYPTIAN_TITLES = [
 
 export function renderHomeScreen(
   state: HomeScreenState,
-  _callbacks?: Partial<HomeScreenCallbacks>
+  _callbacks?: Partial<HomeScreenCallbacks>,
+  audioControlsHtml?: string
 ): string {
   // كارت لعبة دومينو 101 الرئيسي مع بلاطتي الدش وشيش بنج
   const tileDoshSvg = renderTileSvg({
@@ -74,15 +75,17 @@ export function renderHomeScreen(
           </div>
         </div>
 
-        <!-- كارت بروفايل اللاعب المصري -->
-        <div style="display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.45);
-                    padding: 8px 16px; border-radius: 20px; border: 1.5px solid rgba(212,175,55,0.4);">
-          <div style="font-size: 26px;">🧔🏻‍♂️</div>
-          <div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="color: ${AHWA_COLORS.warmGold}; font-weight: 800; font-size: 14px;">
-                ${state.playerTitle} ${state.playerName}
-              </span>
+        <!-- أدوات الصوت والاهتزاز وكارت بروفايل اللاعب المصري -->
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          ${audioControlsHtml || ''}
+          <div style="display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.45);
+                      padding: 8px 16px; border-radius: 20px; border: 1.5px solid rgba(212,175,55,0.4);">
+            <div style="font-size: 26px;">🧔🏻‍♂️</div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="color: ${AHWA_COLORS.warmGold}; font-weight: 800; font-size: 14px;">
+                  ${state.playerTitle} ${state.playerName}
+                </span>
               <button id="btn-open-edit-name" style="background: transparent; border: none; color: ${AHWA_COLORS.paleGold}; cursor: pointer; font-size: 13px;" title="تعديل الاسم واللقب">
                 ✏️
               </button>
