@@ -1,7 +1,7 @@
 # قهوتنا | ahwtna — تقرير حالة التنفيذ (Implementation Status)
 
 > **تاريخ التحديث:** أكتوبر 2026  
-> **الحالة العامة:** تم إنجاز **المرحلة 0 (Stage 0: Monorepo Setup & Tooling)** بنجاح 100%، وتم ربط المستودع بـ GitHub وإنشاء الريبو الرسمي ودفع الكود التأسيسي. جاهز للبدء في **المرحلة 1 (Stage 1: Shared Contracts & Schemas)**.
+> **الحالة العامة:** تم إنجاز **المرحلة 0 (Monorepo Setup)** و **المرحلة 1 (Shared Contracts & Schemas)** بنجاح 100%. جاهز للبدء في **المرحلة 2 (Domino Tile Engine & Shuffle)**.
 
 ---
 
@@ -9,21 +9,33 @@
 - **المشروع:** منصة ألعاب اجتماعية بروح القهوة المصرية — اللعبة الأولى: **دومينو 101**.
 - **المستودع البعيد:** [https://github.com/SaadElsayed93/ahwtna](https://github.com/SaadElsayed93/ahwtna)
 - **الفرع الحالي:** `main`
-- **المرحلة المكتملة:** **Stage 0: Monorepo Setup & Tooling** ✅
-- **المرحلة التالية:** **Stage 1: Shared Contracts & Schemas** ⬜
+- **المراحل المكتملة:**
+  - ✅ **Stage 0: Monorepo Setup & Tooling**
+  - ✅ **Stage 1: Shared Contracts & Schemas**
+- **المرحلة التالية:** **Stage 2: Domino Tile Generation & Shuffling** 🎲
 
 ---
 
-## 🏗️ نتائج تدقيق المستودع وبيئة العمل (Repository & Tooling Audit)
-- **إدارة مساحة العمل:** `npm workspaces` مدمجة ومتوافقة مع Node.js 20.9.0.
-- **أداة البناء والتسريع:** `Turborepo 2.11.7` لجدولة البناء والفحص الموازي.
-- **إعداد TypeScript:** صارم عبر `tsconfig.base.json` (`strict: true`, `noImplicitAny: true`, `strictNullChecks: true`, `NodeNext`).
-- **الحزم المنشأة:**
-  - `packages/shared`: `@ahwtna/shared` (العقود والأنواع المشتركة)
-  - `packages/game-engine`: `@ahwtna/game-engine` (محرك دومينو 101 الحتمي النقي)
-  - `packages/ui`: `@ahwtna/ui` (نظام تصميم القهوة المصرية)
-  - `apps/server`: `@ahwtna/server` (خادم الألعاب الموثوق Fastify / Socket.IO)
-  - `apps/web`: `@ahwtna/web` (تطبيق الويب والـ PWA)
+## 🏗️ ملخص إنجاز المرحلة 1 (Stage 1 Summary)
+- **تمثيل البلاطات وتماثلها (`packages/shared/src/types/tile.ts`):**
+  - تمثيل البلاطة كثنائية أرقام `readonly [PipValue, PipValue]`.
+  - معرّف نصي فريد بصيغة `"a|b"`.
+  - دوال مساعدة كاملة: `createTile`, `getTileId`, `parseTileId`, `getTileSum`, `isDouble`, `tileEquals`, `matchesValue`, `getOppositeValue`.
+- **المقاعد واللاعبين وتناوب الفرق (`packages/shared/src/types/player.ts`):**
+  - تحديد المقاعد من 0 إلى 3.
+  - تعيين الفرق: فريق أ (المقاعد 0 و 2) وفريق ب (المقاعد 1 و 3).
+  - دوال `getTeamForSeat`, `getNextSeat`, `getTeammateSeat`.
+- **حالات الطاولة والجولة (`packages/shared/src/types/game.ts`):**
+  - `BoardState` مع `leftValue` و `rightValue`.
+  - `RoundResult` و `MatchScore` وحد الـ 101.
+- **أوامر اللاعب ومخططات التحقق Zod (`packages/shared/src/schemas/commands.ts`):**
+  - `PlayTileCommandSchema`, `DrawTileCommandSchema`, `PassCommandSchema`.
+  - `GameCommandSchema` كـ Discriminated Union صارم.
+- **الأحداث وأكواد الأخطاء والثوابت (`packages/shared/src/constants` & `errors`):**
+  - جميع أكواد الأخطاء الصريحة: `NOT_YOUR_TURN`, `ILLEGAL_MOVE`, `CANNOT_PASS_WHEN_MOVE_EXISTS`, إلخ.
+  - الثوابت وألوان القهوة التراثية والرسائل المعربة.
+- **الاختبارات المنفذة:**
+  - 17 اختبار Unit فحصت البلاطات والتحقق وتوزيع المقاعد والفرق بنسبة نجاح 100%.
 
 ---
 
@@ -31,9 +43,9 @@
 
 | المرحلة | الوصف | الحالة | نتائج الاختبارات | ملاحظات |
 |---|---|---|---|---|
-| **Stage 0** | Monorepo Setup & Tooling | ✅ مكتمل | build & typecheck نجحا 100% | ربط المستودع بـ GitHub وتجهيز الـ Monorepo |
-| **Stage 1** | Shared Contracts & Schemas | ⬜ جاهز للبدء | لم تُشغّل بعد | عقود Zod وأنواع البلاطات والأوامر |
-| **Stage 2** | Tile Generation & Shuffling | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-001 إلى ENG-008 |
+| **Stage 0** | Monorepo Setup & Tooling | ✅ مكتمل | build & typecheck 100% | ربط المستودع بـ GitHub وتجهيز الـ Monorepo |
+| **Stage 1** | Shared Contracts & Schemas | ✅ مكتمل | 17/17 tests passed (100%) | عقود Zod وأنواع البلاطات والأوامر |
+| **Stage 2** | Tile Generation & Shuffling | ⬜ جاهز للبدء | لم تُشغّل بعد | ENG-001 إلى ENG-008 (حفظ القطع والخلط) |
 | **Stage 3** | Board Topology & Legal Moves | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-010 إلى ENG-019 |
 | **Stage 4** | Draw, Pass & Block Detection | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-060 إلى ENG-069 |
 | **Stage 5** | Scoring Engine & 101 Limit | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-030 إلى ENG-055 |
@@ -48,17 +60,18 @@
 
 ---
 
-## 🔍 نتائج التحقق الفعلية (Stage 0 Verification Results)
+## 🔍 نتائج التحقق الفعلية (Stage 1 Verification Results)
 | الأمر المنفذ | النتيجة الفعلية | الملاحظات |
 |---|---|---|
-| `git push -u origin main` | ✅ نجح | تم إنشاء الريبو ودفع الملفات التأسيسية على GitHub |
-| `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تم تجميع جميع الحزم بنجاح في 6.1 ثوانٍ |
-| `npm run typecheck` | ✅ نجح (8/8 tasks) | فحص الأنواع الصارم اجتاز بنجاح دون أي خطأ |
-| `node apps/server/dist/index.js` | ✅ نجح | الخادم يعمل ويقرأ من `@ahwtna/shared` و `@ahwtna/game-engine` |
-| `node apps/web/dist/index.js` | ✅ نجح | تطبيق الويب يعمل ويتعرف على كافة الحزم المشتركة |
+| `npm run test` (Turborepo) | ✅ نجح (17/17 tests) | 3 ملفات اختبار في `packages/shared` اجتازت بنجاح |
+| `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تجميع الكود المصدري وتوليد ملفات التعريف `.d.ts` |
+| `npm run typecheck` | ✅ نجح (8/8 tasks) | فحص الأنواع الصارم لا يحوي أي أخطاء |
 
 ---
 
 ## 🎯 الخطوة التالية المباشرة (Single Next Step)
-- **بدء المرحلة 1 (Stage 1: Shared Contracts & Schemas):**
-  - بناء أنواع ومخططات البلاطة واللاعب والمقاعد وأوامر اللعب وأكواد الأخطاء في `packages/shared`.
+- **بدء المرحلة 2 (Stage 2: Tile Generation & Shuffling) في `packages/game-engine`:**
+  - بناء دالة توليد الـ 28 بلاطة Double-Six فريدة (`ENG-001`, `ENG-002`, `ENG-003`).
+  - بناء محرك الخلط الحتمي القابل للحقن بـ Seed عبر خوارزمية Fisher-Yates (`ENG-006`).
+  - منطق التوزيع: 7 قطع لكل لاعب، و14 بالمخزون للفردي و0 للزوجي (`ENG-004`, `ENG-005`, `ENG-007`, `ENG-008`).
+  - تحديد البادئ في الجولة الأولى (صاحب أعلى دوش).
