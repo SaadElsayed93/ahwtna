@@ -9,40 +9,26 @@ import {
   renderScoreBoard,
   renderAhwaModal,
   renderMatchFeed,
-  type MatchFeedEvent,
   type TileState,
 } from '@ahwtna/ui';
 
 import {
-  createEmptyBoard,
-  isBoardEmpty,
-  getPlayableEnds,
-  executePlayerMove,
-  dealInitialTiles,
-  determineFirstRoundOpener,
-  chooseAIMove,
-  isGameBlocked,
-  calculateDominoOutResult,
-  calculateBlockedGameResult,
-  applyRoundScoreAndCheckMatchEnd,
-  type MoveContext,
-} from '@ahwtna/game-engine';
-
-import {
-  type BoardEnd,
-  type BoardState,
   type MatchScore2P,
-  type SeatIndex,
+  type MatchScore4P,
   type Tile,
   tileEquals,
 } from '@ahwtna/shared';
 
-const toTileId = (t: Tile): string => `${t[0]}|${t[1]}`;
+import { getPlayableEnds, isBoardEmpty } from '@ahwtna/game-engine';
+import { computeSnakeLayout } from './layout/snake-layout.js';
+import { OfflineGameController, type SoundEffect } from './controllers/offline-game-controller.js';
 
 // حقن الأنماط التراثية للقهوة المصرية
 injectAhwaStyles();
 
-// الصوتيات التفاعلية (Web Audio API)
+const toTileId = (t: Tile): string => `${t[0]}|${t[1]}`;
+
+// محرك المؤثرات الصوتية (Web Audio API)
 class SoundEngine {
   private ctx: AudioContext | null = null;
 
@@ -60,13 +46,13 @@ class SoundEngine {
     const gain = this.ctx.createGain();
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(140, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.09);
     gain.gain.setValueAtTime(0.85, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.09);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start();
-    osc.stop(this.ctx.currentTime + 0.09);
+    osc.stop(this.ctx.currentTime + 0.1);
   }
 
   playDraw() {
@@ -75,7 +61,7 @@ class SoundEngine {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(340, this.ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.12);
     gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
@@ -83,6 +69,25 @@ class SoundEngine {
     gain.connect(this.ctx.destination);
     osc.start();
     osc.stop(this.ctx.currentTime + 0.13);
+  }
+
+  playPass() {
+    this.init();
+    if (!this.ctx) return;
+    // نقرة خشبية مزدوجة تحاكي خبطة اليد على الطاولة للتمرير
+    [0, 0.08].forEach((delay) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(180, this.ctx!.currentTime + delay);
+      osc.frequency.exponentialRampToValueAtTime(80, this.ctx!.currentTime + delay + 0.04);
+      gain.gain.setValueAtTime(0.3, this.ctx!.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx!.currentTime + delay + 0.04);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(this.ctx!.currentTime + delay);
+      osc.stop(this.ctx!.currentTime + delay + 0.05);
+    });
   }
 
   playWin() {
@@ -101,468 +106,270 @@ class SoundEngine {
       osc.stop(now + idx * 0.1 + 0.26);
     });
   }
+
+  playBlock() {
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    [120, 90, 60].forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+      gain.gain.setValueAtTime(0.6, now + idx * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.07 + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(now + idx * 0.07);
+      osc.stop(now + idx * 0.07 + 0.16);
+    });
+  }
 }
 
 const sounds = new SoundEngine();
 
-// حالة المباراة
-interface WebGameState {
-  board: BoardState;
-  p0Hand: Tile[];
-  p1Hand: Tile[];
-  boneyard: Tile[];
-  currentTurn: SeatIndex;
-  roundNumber: number;
-  matchScore: MatchScore2P;
-  matchOver: boolean;
-  openingTile: Tile | null;
-  feedEvents: MatchFeedEvent[];
-  selectedTile: Tile | null;
-  statusMessage: string;
-  modal: {
-    title: string;
-    subtitle: string;
-    body: string;
-    primaryLabel: string;
-    onPrimary: () => void;
-    variant: 'gold' | 'success' | 'danger';
-  } | null;
-}
-
-const state: WebGameState = {
-  board: createEmptyBoard(),
-  p0Hand: [],
-  p1Hand: [],
-  boneyard: [],
-  currentTurn: 0,
-  roundNumber: 1,
-  matchScore: { seat0: 0, seat1: 0 },
-  matchOver: false,
-  openingTile: null,
-  feedEvents: [],
-  selectedTile: null,
-  statusMessage: '',
-  modal: null,
-};
-
-function addFeedEvent(type: MatchFeedEvent['type'], text: string) {
-  const d = new Date();
-  const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
-  state.feedEvents.push({
-    id: Math.random().toString(36).substring(2),
-    timestamp: time,
-    type,
-    text,
-  });
-}
-
-function startNewRound() {
-  const deal = dealInitialTiles('INDIVIDUAL_2P');
-
-  state.board = createEmptyBoard();
-  state.p0Hand = [...(deal.hands[0] ?? [])];
-  state.p1Hand = [...(deal.hands[1] ?? [])];
-  state.boneyard = [...deal.boneyard];
-  state.selectedTile = null;
-  state.modal = null;
-
-  if (state.roundNumber === 1) {
-    // الجولة الأولى: صاحب الدش [6|6] (أو أعلى دبل متاح) يفتتح بالدش حصراً
-    const opener = determineFirstRoundOpener(deal.hands);
-    state.openingTile = opener.startingTile;
-    state.currentTurn = opener.starterSeat;
-    const starterName = getEgyptianTileName(opener.startingTile[0], opener.startingTile[1]);
-
-    if (opener.starterSeat === 0) {
-      state.statusMessage = `أنت معك ${starterName} [${opener.startingTile[0]}|${opener.startingTile[1]}]! اضغط عليه لافتتاح الماتش.`;
-      addFeedEvent('SYSTEM', `الجولة الأولى: معك ${starterName}! اضغط عليه لافتتاح الطاولة.`);
-    } else {
-      state.statusMessage = `عم شكشك معه ${starterName} [${opener.startingTile[0]}|${opener.startingTile[1]}] وسيفتتح الماتش...`;
-      addFeedEvent('SYSTEM', `الجولة الأولى: عم شكشك معه ${starterName} وسيبدأ بالدش.`);
-    }
-  } else {
-    // الجولات التالية (الجولة 2 فما فوق): الفائز بالجولة السابقة يبدأ بأي بلاطة يحبها بكل حرية!
-    state.openingTile = null;
-    if (state.currentTurn === 0) {
-      state.statusMessage = `أنت فائز الجولة السابقة! يحق لك افتتاح الطاولة بأي بلاطة تحبها.`;
-      addFeedEvent('SYSTEM', `الجولة ${state.roundNumber}: أنت صاحب البداية — العب أي بلاطة من يدك!`);
-    } else {
-      state.statusMessage = `عم شكشك فائز الجولة السابقة وسيفتتح الطاولة باختياره...`;
-      addFeedEvent('SYSTEM', `الجولة ${state.roundNumber}: عم شكشك يفتتح الطاولة.`);
-    }
-  }
-
-  render();
-
-  if (state.currentTurn === 1) {
-    setTimeout(triggerAIMove, 1000);
-  }
-}
-
-function resetMatch() {
-  state.roundNumber = 1;
-  state.matchScore = { seat0: 0, seat1: 0 };
-  state.matchOver = false;
-  state.feedEvents = [];
-  addFeedEvent('SYSTEM', 'طاولة جديدة! أهلاً بكم في قهوتنا.');
-  startNewRound();
-}
-
-function checkEndOfRound(): boolean {
-  const handsRecord: Record<SeatIndex, readonly Tile[]> = {
-    0: state.p0Hand,
-    1: state.p1Hand,
-    2: [],
-    3: [],
-  };
-
-  // 1. خروج أحد اللاعبين (دومينو!)
-  if (state.p0Hand.length === 0 || state.p1Hand.length === 0) {
-    sounds.playWin();
-    const winner: SeatIndex = state.p0Hand.length === 0 ? 0 : 1;
-    const roundRes = calculateDominoOutResult(winner, 'INDIVIDUAL_2P', handsRecord, state.roundNumber);
-    const scoreUpdate = applyRoundScoreAndCheckMatchEnd(state.matchScore, roundRes, 'INDIVIDUAL_2P');
-    state.matchScore = scoreUpdate.updatedScore as MatchScore2P;
-
-    addFeedEvent('DOMINO', winner === 0 ? 'دومينو! أنت أنهيت ورقك أولاً.' : 'دومينو! عم شكشك أنهى ورقه أولاً.');
-
-    if (scoreUpdate.isMatchOver) {
-      state.matchOver = true;
-      const matchWinner = state.matchScore.seat0 >= 101 ? 'عم شكشك' : 'أنت';
-      state.modal = {
-        title: 'نهاية المباراة!',
-        subtitle: `مبروك ${matchWinner}! الخاسر تجاوز حد الـ 101 نقطة جزاء.`,
-        body: `<p>الرصيد النهائي: أنت: <strong>${state.matchScore.seat0}</strong> | عم شكشك: <strong>${state.matchScore.seat1}</strong></p>`,
-        primaryLabel: 'ماتش جديد',
-        onPrimary: resetMatch,
-        variant: 'gold',
-      };
-    } else {
-      state.modal = {
-        title: 'دومينو!',
-        subtitle: winner === 0 ? 'أحسنت! أنهيت ورقك أولاً' : 'عم شكشك قفل الجولة بالدومينو!',
-        body: `<p>نقاط الجزاء المضافة: ${roundRes.penaltyPoints} نقطة على الخاسر.<br>رصيدك: <strong>${state.matchScore.seat0}</strong> | رصيد الخصم: <strong>${state.matchScore.seat1}</strong></p>`,
-        primaryLabel: 'الجولة التالية',
-        onPrimary: () => {
-          state.roundNumber++;
-          state.currentTurn = winner; // الفائز يبدأ الجولة التالية بأي بلاطة
-          startNewRound();
-        },
-        variant: winner === 0 ? 'success' : 'danger',
-      };
-    }
-    render();
-    return true;
-  }
-
-  // 2. القفلة (Blocked Game)
-  if (state.boneyard.length === 0 && isGameBlocked(state.board, handsRecord)) {
-    sounds.playSlam();
-    const roundRes = calculateBlockedGameResult('INDIVIDUAL_2P', handsRecord, state.roundNumber);
-    const scoreUpdate = applyRoundScoreAndCheckMatchEnd(state.matchScore, roundRes, 'INDIVIDUAL_2P');
-    state.matchScore = scoreUpdate.updatedScore as MatchScore2P;
-
-    addFeedEvent('BLOCKED', 'القفلة! لا توجد حركات قانونية لأي لاعب.');
-
-    if (scoreUpdate.isMatchOver) {
-      state.matchOver = true;
-      const matchWinner = state.matchScore.seat0 >= 101 ? 'عم شكشك' : 'أنت';
-      state.modal = {
-        title: 'نهاية المباراة!',
-        subtitle: `مبروك ${matchWinner}! الخاسر تجاوز حد الـ 101 نقطة.`,
-        body: `<p>الرصيد النهائي: أنت: <strong>${state.matchScore.seat0}</strong> | عم شكشك: <strong>${state.matchScore.seat1}</strong></p>`,
-        primaryLabel: 'ماتش جديد',
-        onPrimary: resetMatch,
-        variant: 'gold',
-      };
-    } else {
-      const outcomeText = roundRes.isTie
-        ? 'تعادل في مجموع القطع! 0 نقاط لكلا الطرفين.'
-        : roundRes.winnerSeat === 0
-        ? `أنت صاحب المجموع الأقل! حصلت على ${roundRes.penaltyPoints} نقطة جزاء ضد الخصم.`
-        : `عم شكشك صاحب المجموع الأقل! حصل على ${roundRes.penaltyPoints} نقطة جزاء ضدك.`;
-
-      state.modal = {
-        title: 'القفلة!',
-        subtitle: 'اللعب اتقفل على الطاولة',
-        body: `<p>${outcomeText}<br>رصيدك: <strong>${state.matchScore.seat0}</strong> | رصيد الخصم: <strong>${state.matchScore.seat1}</strong></p>`,
-        primaryLabel: 'الجولة التالية',
-        onPrimary: () => {
-          state.roundNumber++;
-          if (roundRes.winnerSeat !== undefined) {
-            state.currentTurn = roundRes.winnerSeat; // صاحب المجموع الأقل يبدأ
-          }
-          startNewRound();
-        },
-        variant: 'gold',
-      };
-    }
-    render();
-    return true;
-  }
-
-  return false;
-}
-
-function triggerAIMove() {
-  if (state.currentTurn !== 1 || state.matchOver) return;
-
-  // إذا كانت الطاولة فارغة في الجولة الأولى: الـ AI يبدأ بقطعة البداية المحددة (الدش)
-  if (isBoardEmpty(state.board) && state.roundNumber === 1 && state.openingTile) {
-    const starter = state.openingTile;
-    sounds.playSlam();
-    const moveCtx: MoveContext = {
-      phase: 'PLAYING',
-      activeSeat: 1,
-      hand: state.p1Hand,
-      board: state.board,
-    };
-    const moveRes = executePlayerMove(1, starter, 'LEFT', moveCtx);
-    state.board = moveRes.newBoard;
-    state.p1Hand = [...moveRes.newHand];
-    const name = getEgyptianTileName(starter[0], starter[1]);
-    addFeedEvent('PLAY', `عم شكشك افتتح الطاولة بـ ${name} [${starter[0]}|${starter[1]}]`);
-    state.currentTurn = 0;
-    state.statusMessage = 'دورك الآن — العب بلاطة تطابق أحد طرفي الطاولة!';
-    render();
-    return;
-  }
-
-  const decision = chooseAIMove({
-    seat: 1,
-    hand: state.p1Hand,
-    board: state.board,
-    mode: 'INDIVIDUAL_2P',
-    boneyardCount: state.boneyard.length,
-  });
-
-  if (decision.action === 'PLAY' && decision.tile && decision.targetEnd) {
-    sounds.playSlam();
-    const playedTile = decision.tile;
-    const moveCtx: MoveContext = {
-      phase: 'PLAYING',
-      activeSeat: 1,
-      hand: state.p1Hand,
-      board: state.board,
-    };
-    const moveRes = executePlayerMove(1, playedTile, decision.targetEnd, moveCtx);
-    state.board = moveRes.newBoard;
-    state.p1Hand = [...moveRes.newHand];
-    const tileName = getEgyptianTileName(playedTile[0], playedTile[1]);
-    addFeedEvent('PLAY', `عم شكشك لعب ${tileName} [${playedTile[0]}|${playedTile[1]}] على ${decision.targetEnd === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
-
-    if (checkEndOfRound()) return;
-
-    state.currentTurn = 0;
-    state.statusMessage = 'دورك — اختر بلاطة للعب!';
-    render();
-  } else if (decision.action === 'DRAW') {
-    if (state.boneyard.length > 0) {
+function playSoundByEvent(sound: SoundEffect) {
+  switch (sound) {
+    case 'slam':
+      sounds.playSlam();
+      break;
+    case 'draw':
       sounds.playDraw();
-      const drawn = state.boneyard.pop()!;
-      state.p1Hand.push(drawn);
-      addFeedEvent('DRAW', 'عم شكشك سحب بلاطة من المخزون');
-      state.statusMessage = 'عم شكشك سحب بلاطة...';
-      render();
-      setTimeout(triggerAIMove, 700);
-    } else {
-      addFeedEvent('PASS', 'عم شكشك باصى لعدم وجود قطع في المخزون');
-      state.currentTurn = 0;
-      state.statusMessage = 'عم شكشك باصى! الدور عندك.';
-      render();
-    }
-  } else if (decision.action === 'PASS') {
-    addFeedEvent('PASS', 'عم شكشك باصى (تمرير الدور)');
-    state.currentTurn = 0;
-    state.statusMessage = 'عم شكشك مرر الدور! دورك للعب.';
-    render();
+      break;
+    case 'pass':
+      sounds.playPass();
+      break;
+    case 'win':
+      sounds.playWin();
+      break;
+    case 'block':
+      sounds.playBlock();
+      break;
   }
 }
 
-function handleTileClick(tile: Tile) {
-  if (state.matchOver) return;
+// إنشاء متحكم اللعبة الأوفلاين
+const controller = new OfflineGameController({
+  onUpdate: () => render(),
+  onSound: playSoundByEvent,
+});
 
-  if (state.currentTurn !== 0) {
-    state.statusMessage = 'انتظر دورك! عم شكشك بيفكر في نقلته...';
-    render();
-    return;
-  }
+// بدء الماتش
+controller.resetMatch();
 
-  // في الجولة الأولى والطاولة فارغة: يجب البدء بقطعة البداية المعتمدة (الدش)
-  if (state.roundNumber === 1 && isBoardEmpty(state.board) && state.openingTile) {
-    if (!tileEquals(tile, state.openingTile)) {
-      const name = getEgyptianTileName(state.openingTile[0], state.openingTile[1]);
-      state.statusMessage = `قواعد الدومينو: أول جولة لازم تبدأ بـ ${name} [${state.openingTile[0]}|${state.openingTile[1]}]!`;
-      addFeedEvent('SYSTEM', `تنبيه: لازم تبدأ بـ ${name} لافتتاح الجولة.`);
-      render();
-      return;
-    }
-    playPlayerTile(tile, 'LEFT');
-    return;
-  }
-
-  // في أي جولة تالية (2، 3، إلخ) والطاولة فارغة: الفائز يلعب أي بلاطة يختارها بكل حرية!
-  if (isBoardEmpty(state.board)) {
-    playPlayerTile(tile, 'LEFT');
-    return;
-  }
-
-  const ends = getPlayableEnds(tile, state.board);
-  const tileName = getEgyptianTileName(tile[0], tile[1]);
-
-  if (ends.length === 0) {
-    state.statusMessage = `البلاطة ${tileName} [${tile[0]}|${tile[1]}] لا تطابق أي طرف مفتوح (${state.board.leftValue} أو ${state.board.rightValue}).`;
-    render();
-    return;
-  }
-
-  if (ends.length === 1) {
-    playPlayerTile(tile, ends[0]!);
-  } else {
-    // تطابق كلا الطرفين: نعرض نافذة الاختيار
-    state.selectedTile = tile;
-    state.statusMessage = `اختر الطرف المطلوب للعب ${tileName} [${tile[0]}|${tile[1]}]`;
-    render();
-  }
-}
-
-function playPlayerTile(tile: Tile, end: BoardEnd) {
-  sounds.playSlam();
-  const moveCtx: MoveContext = {
-    phase: 'PLAYING',
-    activeSeat: 0,
-    hand: state.p0Hand,
-    board: state.board,
-  };
-  const moveRes = executePlayerMove(0, tile, end, moveCtx);
-  state.board = moveRes.newBoard;
-  state.p0Hand = [...moveRes.newHand];
-  state.selectedTile = null;
-
-  const tileName = getEgyptianTileName(tile[0], tile[1]);
-  addFeedEvent('PLAY', `أنت لعبت ${tileName} [${tile[0]}|${tile[1]}] على ${end === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
-
-  if (checkEndOfRound()) return;
-
-  state.currentTurn = 1;
-  state.statusMessage = 'عم شكشك يفكر في نقلته...';
-  render();
-  setTimeout(triggerAIMove, 900);
-}
-
-function handlePlayerDraw() {
-  if (state.currentTurn !== 0 || state.matchOver) return;
-  if (state.boneyard.length === 0) return;
-
-  sounds.playDraw();
-  const drawn = state.boneyard.pop()!;
-  state.p0Hand.push(drawn);
-  const drawnName = getEgyptianTileName(drawn[0], drawn[1]);
-  addFeedEvent('DRAW', `سحبت ${drawnName} [${drawn[0]}|${drawn[1]}] من المخزون`);
-  state.statusMessage = `سحبت ${drawnName} — هل تناسب اللعب الآن؟`;
-
-  render();
-}
-
-function handlePlayerPass() {
-  if (state.currentTurn !== 0 || state.matchOver) return;
-  addFeedEvent('PASS', 'أنت مررت الدور (باص)');
-  state.currentTurn = 1;
-  state.statusMessage = 'مررت الدور — عم شكشك يلعب...';
-  render();
-  setTimeout(triggerAIMove, 900);
-}
-
-// رسم واجهة المستخدم بالكامل
+// دالة تصيير الشاشة التفاعلية
 function render() {
   const app = document.getElementById('app');
   if (!app) return;
 
-  // فحص النقلات القانونية
+  const userHand = controller.hands[0];
+  const isUserTurn = controller.currentTurn === 0 && !controller.matchOver;
+
+  // فحص النقلات القانونية المتاحة ليد اللاعب
   let hasLegalMove = false;
-  if (isBoardEmpty(state.board)) {
-    hasLegalMove = state.roundNumber === 1 && state.openingTile
-      ? state.p0Hand.some((t) => tileEquals(t, state.openingTile!))
-      : state.p0Hand.length > 0;
+  if (isBoardEmpty(controller.board)) {
+    hasLegalMove = controller.roundNumber === 1 && controller.openingTile
+      ? userHand.some((t) => tileEquals(t, controller.openingTile!))
+      : userHand.length > 0;
   } else {
-    hasLegalMove = state.p0Hand.some((t) => getPlayableEnds(t, state.board).length > 0);
+    hasLegalMove = userHand.some((t) => getPlayableEnds(t, controller.board).length > 0);
   }
 
-  const canDraw = state.currentTurn === 0 && !hasLegalMove && state.boneyard.length > 0;
-  const canPass = state.currentTurn === 0 && !hasLegalMove && state.boneyard.length === 0;
+  const canDraw = isUserTurn && !hasLegalMove && controller.boneyard.length > 0 && controller.mode === 'INDIVIDUAL_2P';
+  const canPass = isUserTurn && !hasLegalMove && (controller.boneyard.length === 0 || controller.mode === 'TEAM_4P');
 
-  // شارة الخصم
-  const opponentIndicatorHtml = renderTurnIndicator({
-    playerName: 'عم شكشك',
-    avatarChar: 'ش',
-    isCurrentTurn: state.currentTurn === 1,
-    tileCount: state.p1Hand.length,
-    timerSeconds: state.currentTurn === 1 ? 25 : undefined,
-  });
-
-  // شارة اللاعب
-  const playerIndicatorHtml = renderTurnIndicator({
-    playerName: 'أنت (معلم الطاولة)',
-    avatarChar: 'أ',
-    isCurrentTurn: state.currentTurn === 0,
-    tileCount: state.p0Hand.length,
-    timerSeconds: state.currentTurn === 0 ? 30 : undefined,
-  });
-
-  // نوتة الحساب
-  const scoreBoardHtml = renderScoreBoard({
-    roundNumber: state.roundNumber,
-    players: [
-      { id: 'p0', name: 'أنت', penaltyScore: state.matchScore.seat0 },
-      { id: 'p1', name: 'عم شكشك', penaltyScore: state.matchScore.seat1 },
-    ],
-    matchLimit: 101,
-  });
-
-  // شريط الأحداث
-  const feedHtml = renderMatchFeed({
-    events: state.feedEvents,
-    maxItems: 6,
-  });
-
-  // قطع السلسلة على الطاولة
-  let chainHtml = '';
-  if (isBoardEmpty(state.board)) {
-    chainHtml = `
-      <div style="color: ${AHWA_COLORS.paleGold}; opacity: 0.85; font-size: 16px; margin: auto; text-align: center; background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 12px; border: 1px dashed rgba(212,175,55,0.4);">
-        🪑 الطاولة خالية... بانتظار أول بلاطة لافتتاح السلسلة!
+  // شارات اللاعبين
+  let playersLayoutHtml = '';
+  if (controller.mode === 'INDIVIDUAL_2P') {
+    const opp = controller.getPlayer(1);
+    playersLayoutHtml = `
+      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        ${renderTurnIndicator({
+          playerName: opp.name,
+          avatarChar: opp.avatarChar,
+          isCurrentTurn: controller.currentTurn === 1,
+          tileCount: controller.hands[1].length,
+          timerSeconds: controller.currentTurn === 1 ? 25 : undefined,
+        })}
+        <div style="font-size: 13px; color: ${AHWA_COLORS.paleGold}; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(212,175,55,0.3);">
+          🎲 قطع المخزون المتبقية: <strong>${controller.boneyard.length}</strong>
+        </div>
       </div>
     `;
   } else {
-    chainHtml = state.board.nodes
-      .map((node, idx) => {
-        const isHoriz = node.tile[0] !== node.tile[1];
-        return renderTileSvg({
-          left: node.tile[0],
-          right: node.tile[1],
-          orientation: isHoriz ? 'horizontal' : 'vertical',
-          size: 'md',
-          className: idx === state.board.nodes.length - 1 || idx === 0 ? 'ahwa-tile-slam-animate' : '',
-        });
-      })
-      .join(' ');
+    // نمط الزوجي (4 لاعبين)
+    const p1 = controller.getPlayer(1); // خصم (يسار)
+    const p2 = controller.getPlayer(2); // زميل (فوق)
+    const p3 = controller.getPlayer(3); // خصم (يمين)
+
+    playersLayoutHtml = `
+      <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+        <!-- الزميل (في الأعلى) -->
+        <div style="display: flex; justify-content: center;">
+          ${renderTurnIndicator({
+            playerName: `${p2.name} (فريقك)`,
+            avatarChar: p2.avatarChar,
+            isCurrentTurn: controller.currentTurn === 2,
+            tileCount: controller.hands[2].length,
+            timerSeconds: controller.currentTurn === 2 ? 25 : undefined,
+          })}
+        </div>
+        <!-- الخصمان (يمين ويسار) -->
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          ${renderTurnIndicator({
+            playerName: `${p1.name} (خصم)`,
+            avatarChar: p1.avatarChar,
+            isCurrentTurn: controller.currentTurn === 1,
+            tileCount: controller.hands[1].length,
+            timerSeconds: controller.currentTurn === 1 ? 25 : undefined,
+          })}
+          <div style="font-size: 13px; color: ${AHWA_COLORS.paleGold}; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(212,175,55,0.3);">
+            👥 لعب زوجي (بدون سحب)
+          </div>
+          ${renderTurnIndicator({
+            playerName: `${p3.name} (خصم)`,
+            avatarChar: p3.avatarChar,
+            isCurrentTurn: controller.currentTurn === 3,
+            tileCount: controller.hands[3].length,
+            timerSeconds: controller.currentTurn === 3 ? 25 : undefined,
+          })}
+        </div>
+      </div>
+    `;
   }
 
-  // قطع يد اللاعب مع إبراز اسمها الشعبي المصري
-  const handHtml = state.p0Hand
+  // نوتة الحساب
+  let scoreBoardHtml = '';
+  if (controller.mode === 'INDIVIDUAL_2P') {
+    const s = controller.matchScore as MatchScore2P;
+    scoreBoardHtml = renderScoreBoard({
+      roundNumber: controller.roundNumber,
+      players: [
+        { id: 'p0', name: 'أنت', penaltyScore: s.seat0 },
+        { id: 'p1', name: 'عم شكشك', penaltyScore: s.seat1 },
+      ],
+      matchLimit: 101,
+    });
+  } else {
+    const s = controller.matchScore as MatchScore4P;
+    scoreBoardHtml = renderScoreBoard({
+      roundNumber: controller.roundNumber,
+      players: [
+        { id: 'teamA', name: 'فريقك (أنت ومحروس)', penaltyScore: s.teamA },
+        { id: 'teamB', name: 'فريق شكشك وفوزي', penaltyScore: s.teamB },
+      ],
+      matchLimit: 101,
+    });
+  }
+
+  // حساب توزيع سلسلة الدومينو الملتفة (Snake Layout)
+  const snakeLayout = computeSnakeLayout(controller.board, 6);
+  let chainContentHtml = '';
+
+  if (isBoardEmpty(controller.board)) {
+    chainContentHtml = `
+      <div style="color: ${AHWA_COLORS.paleGold}; opacity: 0.9; font-size: 16px; margin: auto; text-align: center; background: rgba(0,0,0,0.35); padding: 18px 28px; border-radius: 14px; border: 1.5px dashed rgba(212,175,55,0.45); max-width: 480px;">
+        <div style="font-size: 28px; margin-bottom: 8px;">🪑🎲</div>
+        <div style="font-weight: 700; font-size: 18px; color: ${AHWA_COLORS.warmGold}; margin-bottom: 6px;">طاولة اللعب خالية</div>
+        <div>${controller.statusMessage}</div>
+      </div>
+    `;
+  } else {
+    // رسم السلسلة مع إبراز الأطراف المفتوحة والالتفاف الذكي
+    const rowsMap = new Map<number, typeof snakeLayout.items>();
+    for (const item of snakeLayout.items) {
+      if (!rowsMap.has(item.row)) {
+        rowsMap.set(item.row, []);
+      }
+      rowsMap.get(item.row)!.push(item);
+    }
+
+    chainContentHtml = `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 100%; overflow-x: auto; padding: 12px 6px;">
+        ${Array.from(rowsMap.entries()).map(([rowIndex, rowItems]) => {
+          const isLtr = rowIndex % 2 === 0;
+          return `
+            <div style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-direction: ${isLtr ? 'row' : 'row-reverse'}; flex-wrap: nowrap;">
+              ${rowItems.map((item) => {
+                const isSelectedEnd = !!(controller.selectedTile && (item.isFirst || item.isLast));
+                const tileMarkup = renderTileSvg({
+                  left: item.displayValues[0],
+                  right: item.displayValues[1],
+                  orientation: item.orientation,
+                  size: 'md',
+                  state: isSelectedEnd ? 'playable' : 'idle',
+                  className: item.isFirst || item.isLast ? 'ahwa-tile-slam-animate' : '',
+                });
+
+                return `
+                  <div style="display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease; ${isSelectedEnd ? 'filter: drop-shadow(0 0 8px #D4AF37);' : ''}">
+                    ${tileMarkup}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // أهداف الأطراف المفتوحة على سطح الطاولة (Interactive Open End Slots)
+  let tableOpenEndsHeaderHtml = '';
+  if (!isBoardEmpty(controller.board)) {
+    const leftVal = controller.board.leftValue!;
+    const rightVal = controller.board.rightValue!;
+    const canPlayLeft = controller.selectedTile && getPlayableEnds(controller.selectedTile, controller.board).includes('LEFT');
+    const canPlayRight = controller.selectedTile && getPlayableEnds(controller.selectedTile, controller.board).includes('RIGHT');
+
+    tableOpenEndsHeaderHtml = `
+      <div style="position: absolute; top: 12px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; z-index: 20; pointer-events: none;">
+        <!-- الطرف الأيمن (LEFT end in logic) -->
+        <button id="btn-target-left" class="ahwa-end-target ${canPlayLeft ? 'is-target-active' : ''}"
+                style="pointer-events: auto; display: flex; align-items: center; gap: 8px; background: rgba(13,59,46,0.9);
+                       border: 2px solid ${canPlayLeft ? AHWA_COLORS.warmGold : 'rgba(212,175,55,0.4)'};
+                       border-radius: 20px; padding: 6px 14px; color: ${AHWA_COLORS.paleGold}; cursor: ${canPlayLeft ? 'pointer' : 'default'};
+                       box-shadow: ${canPlayLeft ? '0 0 16px rgba(212,175,55,0.8)' : '0 4px 10px rgba(0,0,0,0.5)'};
+                       transition: all 0.2s ease;">
+          <span style="font-size: 13px; font-weight: 700;">الطرف الأيمن</span>
+          <span style="font-size: 18px; font-weight: 900; color: ${AHWA_COLORS.warmGold}; background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 8px;">
+            ${leftVal}
+          </span>
+          ${canPlayLeft ? '<span style="font-size: 11px; background: #2E7D32; color: #fff; padding: 2px 6px; border-radius: 4px;">العب هنا</span>' : ''}
+        </button>
+
+        <!-- الطرف الأيسر (RIGHT end in logic) -->
+        <button id="btn-target-right" class="ahwa-end-target ${canPlayRight ? 'is-target-active' : ''}"
+                style="pointer-events: auto; display: flex; align-items: center; gap: 8px; background: rgba(13,59,46,0.9);
+                       border: 2px solid ${canPlayRight ? AHWA_COLORS.warmGold : 'rgba(212,175,55,0.4)'};
+                       border-radius: 20px; padding: 6px 14px; color: ${AHWA_COLORS.paleGold}; cursor: ${canPlayRight ? 'pointer' : 'default'};
+                       box-shadow: ${canPlayRight ? '0 0 16px rgba(212,175,55,0.8)' : '0 4px 10px rgba(0,0,0,0.5)'};
+                       transition: all 0.2s ease;">
+          ${canPlayRight ? '<span style="font-size: 11px; background: #2E7D32; color: #fff; padding: 2px 6px; border-radius: 4px;">العب هنا</span>' : ''}
+          <span style="font-size: 18px; font-weight: 900; color: ${AHWA_COLORS.warmGold}; background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 8px;">
+            ${rightVal}
+          </span>
+          <span style="font-size: 13px; font-weight: 700;">الطرف الأيسر</span>
+        </button>
+      </div>
+    `;
+  }
+
+  // صينية ورق اللاعب
+  const handHtml = userHand
     .map((tile) => {
       let isPlayable = false;
-      if (state.currentTurn === 0) {
-        if (isBoardEmpty(state.board)) {
-          isPlayable = state.roundNumber === 1 && state.openingTile
-            ? tileEquals(tile, state.openingTile)
+      if (isUserTurn) {
+        if (isBoardEmpty(controller.board)) {
+          isPlayable = controller.roundNumber === 1 && controller.openingTile
+            ? tileEquals(tile, controller.openingTile)
             : true;
         } else {
-          isPlayable = getPlayableEnds(tile, state.board).length > 0;
+          isPlayable = getPlayableEnds(tile, controller.board).length > 0;
         }
       }
 
-      const isSelected = state.selectedTile ? tileEquals(state.selectedTile, tile) : false;
+      const isSelected = controller.selectedTile ? tileEquals(controller.selectedTile, tile) : false;
       const tileState: TileState = isSelected ? 'selected' : isPlayable ? 'playable' : 'disabled';
       const tileIdStr = toTileId(tile);
       const egyptianName = getEgyptianTileName(tile[0], tile[1]);
@@ -577,12 +384,18 @@ function render() {
       });
 
       return `
-        <div class="user-hand-tile-wrapper ${isPlayable ? 'is-clickable' : ''}"
+        <div class="user-hand-tile-wrapper ${isPlayable ? 'is-clickable' : ''} ${isSelected ? 'is-active-selected' : ''}"
              data-id="${tileIdStr}"
              title="${egyptianName} [${tile[0]}|${tile[1]}]"
-             style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: ${isPlayable ? 'pointer' : 'not-allowed'}; touch-action: manipulation; transition: transform 0.15s ease;">
+             style="display: flex; flex-direction: column; align-items: center; gap: 6px;
+                    cursor: ${isPlayable ? 'pointer' : 'not-allowed'}; min-width: 56px;
+                    touch-action: manipulation; transition: transform 0.15s ease, filter 0.2s ease;
+                    transform: ${isSelected ? 'translateY(-10px) scale(1.05)' : 'translateY(0)'};">
           ${tileMarkup}
-          <span style="font-size: 11px; font-weight: 700; color: ${isPlayable ? AHWA_COLORS.warmGold : '#aaa'}; background: rgba(0,0,0,0.55); padding: 2px 6px; border-radius: 4px; border: 1px solid ${isPlayable ? 'rgba(212,175,55,0.45)' : 'rgba(255,255,255,0.1)'}; white-space: nowrap;">
+          <span style="font-size: 11px; font-weight: 700; color: ${isPlayable ? AHWA_COLORS.warmGold : '#aaa'};
+                       background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 6px;
+                       border: 1px solid ${isPlayable ? 'rgba(212,175,55,0.45)' : 'rgba(255,255,255,0.1)'};
+                       white-space: nowrap;">
             ${egyptianName}
           </span>
         </div>
@@ -590,9 +403,9 @@ function render() {
     })
     .join('');
 
-  // أزرار التحكم
+  // شريط أزرار التحكم
   const drawButtonHtml = renderAhwaButton({
-    label: `سحب (${state.boneyard.length})`,
+    label: `سحب (${controller.boneyard.length})`,
     variant: 'gold',
     size: 'md',
     disabled: !canDraw,
@@ -614,109 +427,134 @@ function render() {
     id: 'btn-restart',
   });
 
-  // مودال عند وجوده
-  let modalHtml = '';
-  if (state.modal) {
-    modalHtml = renderAhwaModal({
-      title: state.modal.title,
-      subtitle: state.modal.subtitle,
-      bodyHtml: state.modal.body,
-      primaryAction: {
-        label: state.modal.primaryLabel,
-        onClickAttr: 'window.__ahwa_onModalPrimary()',
-      },
-      variant: state.modal.variant,
-      id: 'active-modal',
-    });
-    (window as unknown as { __ahwa_onModalPrimary: () => void }).__ahwa_onModalPrimary = state.modal.onPrimary;
-  }
-
-  // خيار اختيار الطرف عند النقر على بلاطة تطابق الطرفين
+  // نافذة اختيار الطرف عند تحديد بلاطة تنفع للطرفين
   let chooseEndDialogHtml = '';
-  if (state.selectedTile && state.board.leftValue !== null && state.board.rightValue !== null) {
-    const selectedName = getEgyptianTileName(state.selectedTile[0], state.selectedTile[1]);
+  if (controller.selectedTile && controller.board.leftValue !== null && controller.board.rightValue !== null) {
+    const selectedName = getEgyptianTileName(controller.selectedTile[0], controller.selectedTile[1]);
     chooseEndDialogHtml = `
-      <div style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-                  background: ${AHWA_COLORS.walnutWood}; padding: 14px 20px; border-radius: 14px;
-                  border: 2px solid ${AHWA_COLORS.warmGold}; box-shadow: 0 8px 30px rgba(0,0,0,0.85);
-                  display: flex; gap: 12px; align-items: center; z-index: 100;">
-        <span style="font-weight: 700; color: ${AHWA_COLORS.creamPaper}; font-size: 15px;">العب ${selectedName} [${state.selectedTile[0]}|${state.selectedTile[1]}] على:</span>
-        <button id="btn-play-left" class="ahwa-btn ahwa-btn-gold ahwa-btn-md">الطرف الأيمن (${state.board.leftValue})</button>
-        <button id="btn-play-right" class="ahwa-btn ahwa-btn-gold ahwa-btn-md">الطرف الأيسر (${state.board.rightValue})</button>
-        <button id="btn-cancel-select" class="ahwa-btn ahwa-btn-wood ahwa-btn-sm">إلغاء</button>
+      <div style="position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+                  background: ${AHWA_COLORS.walnutWood}; padding: 14px 22px; border-radius: 16px;
+                  border: 2px solid ${AHWA_COLORS.warmGold}; box-shadow: 0 10px 35px rgba(0,0,0,0.9);
+                  display: flex; gap: 14px; align-items: center; z-index: 100; max-width: 90%;">
+        <span style="font-weight: 700; color: ${AHWA_COLORS.creamPaper}; font-size: 15px; white-space: nowrap;">
+          العب ${selectedName} [${controller.selectedTile[0]}|${controller.selectedTile[1]}] على:
+        </span>
+        <button id="btn-play-left" class="ahwa-btn ahwa-btn-gold ahwa-btn-md" style="min-height: 48px; min-width: 120px;">
+          الطرف الأيمن (${controller.board.leftValue})
+        </button>
+        <button id="btn-play-right" class="ahwa-btn ahwa-btn-gold ahwa-btn-md" style="min-height: 48px; min-width: 120px;">
+          الطرف الأيسر (${controller.board.rightValue})
+        </button>
+        <button id="btn-cancel-select" class="ahwa-btn ahwa-btn-wood ahwa-btn-sm" style="min-height: 48px;">
+          إلغاء
+        </button>
       </div>
     `;
   }
 
-  // الهيكل الشامل للصفحة
+  // المودال
+  let modalHtml = '';
+  if (controller.modal) {
+    modalHtml = renderAhwaModal({
+      title: controller.modal.title,
+      subtitle: controller.modal.subtitle,
+      bodyHtml: controller.modal.body,
+      primaryAction: {
+        label: controller.modal.primaryLabel,
+        onClickAttr: 'window.__ahwa_onModalPrimary()',
+      },
+      variant: controller.modal.variant,
+      id: 'active-modal',
+    });
+    (window as unknown as { __ahwa_onModalPrimary: () => void }).__ahwa_onModalPrimary = controller.modal.onPrimary;
+  }
+
+  // شريط الأحداث
+  const feedHtml = renderMatchFeed({
+    events: controller.feedEvents,
+    maxItems: 5,
+  });
+
+  // التركيب النهائي للواجهة
   app.innerHTML = `
-    <!-- رأس الصفحة والشعار -->
-    <header style="background: rgba(13, 59, 46, 0.95); border-bottom: 2px solid ${AHWA_COLORS.warmGold};
-                   padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;">
+    <!-- الهيدر الرئيسي -->
+    <header style="background: rgba(13, 59, 46, 0.98); border-bottom: 2px solid ${AHWA_COLORS.warmGold};
+                   padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
       <div style="display: flex; align-items: center; gap: 12px;">
-        <h1 style="color: ${AHWA_COLORS.warmGold}; font-weight: 900; font-size: 24px;">${DOMINO_VOCABULARY.gameTitle}</h1>
+        <h1 style="color: ${AHWA_COLORS.warmGold}; font-weight: 900; font-size: 22px; margin: 0;">${DOMINO_VOCABULARY.gameTitle}</h1>
         <span style="color: ${AHWA_COLORS.creamPaper}; opacity: 0.8; font-size: 13px;">${DOMINO_VOCABULARY.tagline}</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px;">
+
+      <!-- محول نمط اللعب (فردي / زوجي) -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="background: rgba(0,0,0,0.4); padding: 3px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid rgba(212,175,55,0.3);">
+          <button id="btn-mode-2p" style="background: ${controller.mode === 'INDIVIDUAL_2P' ? AHWA_COLORS.warmGold : 'transparent'};
+                                          color: ${controller.mode === 'INDIVIDUAL_2P' ? '#000' : AHWA_COLORS.creamPaper};
+                                          border: none; border-radius: 7px; padding: 6px 12px; font-weight: 700; font-size: 12px; cursor: pointer;">
+            فردي (2P)
+          </button>
+          <button id="btn-mode-4p" style="background: ${controller.mode === 'TEAM_4P' ? AHWA_COLORS.warmGold : 'transparent'};
+                                          color: ${controller.mode === 'TEAM_4P' ? '#000' : AHWA_COLORS.creamPaper};
+                                          border: none; border-radius: 7px; padding: 6px 12px; font-weight: 700; font-size: 12px; cursor: pointer;">
+            زوجي (4P)
+          </button>
+        </div>
         ${restartButtonHtml}
       </div>
     </header>
 
-    <!-- مساحة اللعب الرئيسية -->
-    <main style="flex: 1; display: flex; flex-direction: column; padding: 16px; max-width: 1280px; width: 100%; margin: 0 auto; gap: 16px;">
+    <!-- منطقة اللعب الرئيسية -->
+    <main style="flex: 1; display: flex; flex-direction: column; padding: 12px; max-width: 1320px; width: 100%; margin: 0 auto; gap: 12px;">
       
-      <!-- شريط معلومات الخصم ولوحة الحساب -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          ${opponentIndicatorHtml}
+      <!-- شريط معلومات اللاعبين ولوحة الحساب -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 300px;">
+          ${playersLayoutHtml}
         </div>
-        <div>
+        <div style="min-width: 280px;">
           ${scoreBoardHtml}
         </div>
       </div>
 
-      <!-- بانر حالة اللعب الحالي -->
-      <div style="background: rgba(0,0,0,0.35); border: 1.5px solid ${state.currentTurn === 0 ? AHWA_COLORS.warmGold : 'rgba(255,255,255,0.15)'};
-                  border-radius: 10px; padding: 10px 18px; text-align: center; font-size: 15px; font-weight: 700;
-                  color: ${state.currentTurn === 0 ? AHWA_COLORS.paleGold : '#aaa'}; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-        📢 ${state.statusMessage || (state.currentTurn === 0 ? 'دورك للعب!' : 'دور الخصم...')}
+      <!-- بانر حالة الدور الحالي -->
+      <div style="background: rgba(0,0,0,0.4); border: 1.5px solid ${isUserTurn ? AHWA_COLORS.warmGold : 'rgba(255,255,255,0.15)'};
+                  border-radius: 10px; padding: 10px 16px; text-align: center; font-size: 15px; font-weight: 700;
+                  color: ${isUserTurn ? AHWA_COLORS.paleGold : '#bbb'}; box-shadow: 0 4px 12px rgba(0,0,0,0.35);">
+        📢 ${controller.statusMessage || (isUserTurn ? 'دورك للعب!' : 'دور الخصم...')}
       </div>
 
-      <!-- طاولة اللعب التراثية -->
-      <div style="flex: 1; min-height: 420px; background: radial-gradient(circle, ${AHWA_COLORS.tableGreen} 0%, ${AHWA_COLORS.darkGreen} 100%);
+      <!-- طاولة الدومينو التراثية الكبرى (مع خوارزمية الالتفاف الذكي Snake Layout) -->
+      <div style="flex: 1; min-height: 380px; background: radial-gradient(circle, ${AHWA_COLORS.tableGreen} 0%, ${AHWA_COLORS.darkGreen} 100%);
                   border: 8px solid ${AHWA_COLORS.walnutWood}; border-radius: 20px;
-                  box-shadow: inset 0 0 60px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.6);
-                  position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px;">
+                  box-shadow: inset 0 0 60px rgba(0,0,0,0.85), 0 10px 30px rgba(0,0,0,0.6);
+                  position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;">
         
-        <!-- الأطراف المفتوحة -->
-        ${!isBoardEmpty(state.board) ? `
-          <div style="position: absolute; top: 12px; left: 24px; display: flex; gap: 16px; font-size: 14px; color: ${AHWA_COLORS.paleGold}; background: rgba(0,0,0,0.55); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(212,175,55,0.3);">
-            <span>الطرف الأيمن: <strong style="color: ${AHWA_COLORS.warmGold}; font-size: 16px;">${state.board.leftValue}</strong></span>
-            <span>|</span>
-            <span>الطرف الأيسر: <strong style="color: ${AHWA_COLORS.warmGold}; font-size: 16px;">${state.board.rightValue}</strong></span>
-          </div>
-        ` : ''}
+        ${tableOpenEndsHeaderHtml}
 
-        <!-- سلسلة الدومينو -->
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; max-width: 100%; max-height: 320px; overflow-y: auto; padding: 12px;">
-          ${chainHtml}
-        </div>
+        <!-- حاوية السلسلة -->
+        ${chainContentHtml}
 
         ${chooseEndDialogHtml}
       </div>
 
-      <!-- صينية قطع اللاعب وأزرار التحكم -->
-      <div style="background: rgba(0,0,0,0.35); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px; border: 1.5px solid rgba(212, 175, 55, 0.25);">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          ${playerIndicatorHtml}
+      <!-- صينية ورق اللاعب وأزرار السحب والتمرير -->
+      <div style="background: rgba(0,0,0,0.4); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; border: 1.5px solid rgba(212, 175, 55, 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          ${renderTurnIndicator({
+            playerName: 'أنت (معلم الطاولة)',
+            avatarChar: 'أ',
+            isCurrentTurn: isUserTurn,
+            tileCount: userHand.length,
+            timerSeconds: isUserTurn ? 30 : undefined,
+          })}
           <div style="display: flex; gap: 10px; align-items: center;">
             ${drawButtonHtml}
             ${passButtonHtml}
           </div>
         </div>
 
-        <!-- قطع اليد مع أسمائها المصرية -->
-        <div style="display: flex; gap: 12px; overflow-x: auto; padding: 12px 6px; justify-content: center; align-items: center; min-height: 140px;">
+        <!-- أوراق اليد مع أسمائها المصرية الشعبية وحجم مناسب للمس (Touch Targets) -->
+        <div style="display: flex; gap: 12px; overflow-x: auto; padding: 10px 6px; justify-content: center; align-items: center; min-height: 145px; -webkit-overflow-scrolling: touch;">
           ${handHtml}
         </div>
       </div>
@@ -731,34 +569,57 @@ function render() {
   `;
 
   // ربط الأحداث
-  document.getElementById('btn-draw')?.addEventListener('click', handlePlayerDraw);
-  document.getElementById('btn-pass')?.addEventListener('click', handlePlayerPass);
-  document.getElementById('btn-restart')?.addEventListener('click', resetMatch);
+  document.getElementById('btn-mode-2p')?.addEventListener('click', () => {
+    if (controller.mode !== 'INDIVIDUAL_2P') controller.setGameMode('INDIVIDUAL_2P');
+  });
 
+  document.getElementById('btn-mode-4p')?.addEventListener('click', () => {
+    if (controller.mode !== 'TEAM_4P') controller.setGameMode('TEAM_4P');
+  });
+
+  document.getElementById('btn-draw')?.addEventListener('click', () => controller.handlePlayerDraw());
+  document.getElementById('btn-pass')?.addEventListener('click', () => controller.handlePlayerPass());
+  document.getElementById('btn-restart')?.addEventListener('click', () => controller.resetMatch());
+
+  // النقر على بلاطات اليد
   document.querySelectorAll('.user-hand-tile-wrapper').forEach((el) => {
     const tileId = el.getAttribute('data-id');
-    const tile = state.p0Hand.find((t) => toTileId(t) === tileId);
+    const tile = userHand.find((t) => toTileId(t) === tileId);
     if (!tile) return;
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      handleTileClick(tile);
+      controller.handlePlayerTileClick(tile);
     });
   });
 
+  // النقر على أهداف الأطراف المفتوحة على سطح الطاولة مباشرة
+  document.getElementById('btn-target-left')?.addEventListener('click', () => {
+    if (controller.selectedTile) {
+      controller.playPlayerMove(controller.selectedTile, 'LEFT');
+    }
+  });
+
+  document.getElementById('btn-target-right')?.addEventListener('click', () => {
+    if (controller.selectedTile) {
+      controller.playPlayerMove(controller.selectedTile, 'RIGHT');
+    }
+  });
+
+  // أزرار الحوار السفلي لاختيار الطرف
   document.getElementById('btn-play-left')?.addEventListener('click', () => {
-    if (state.selectedTile) playPlayerTile(state.selectedTile, 'LEFT');
+    if (controller.selectedTile) controller.playPlayerMove(controller.selectedTile, 'LEFT');
   });
 
   document.getElementById('btn-play-right')?.addEventListener('click', () => {
-    if (state.selectedTile) playPlayerTile(state.selectedTile, 'RIGHT');
+    if (controller.selectedTile) controller.playPlayerMove(controller.selectedTile, 'RIGHT');
   });
 
   document.getElementById('btn-cancel-select')?.addEventListener('click', () => {
-    state.selectedTile = null;
+    controller.selectedTile = null;
     render();
   });
 }
 
-// بدء التشغيل
-resetMatch();
+// بدء التصيير الأول
+render();

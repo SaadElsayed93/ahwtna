@@ -3,7 +3,7 @@
 > **منصة ألعاب اجتماعية عربية بروح ودفء القهوة المصرية الأصيلة**  
 > أولى الألعاب التأسيسية: **دومينو 101 (Domino 101)**
 
-[![CI Status](https://img.shields.io/badge/Tests-86%2F86%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
+[![CI Status](https://img.shields.io/badge/Tests-98%2F98%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![Build](https://img.shields.io/badge/Build-Passing-0D3B2E.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict%20100%25-D4AF37.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-SaadElsayed93%2Fahwtna-blue.svg)](https://github.com/SaadElsayed93/ahwtna)
@@ -138,7 +138,7 @@ npm run play
 ```bash
 npm run test
 ```
-> يُشغل جميع الـ 86 اختباراً آلياً عبر الحزم الخمس بواسطة Turborepo و Vitest.
+> يُشغل جميع الـ 98 اختباراً آلياً عبر الحزم الخمس بواسطة Turborepo و Vitest.
 
 ### 6. فحص الأنواع الصارم وتجميع الكود
 ```bash
@@ -160,8 +160,8 @@ npm run build       # بناء الكود المصدري لجميع الحزم
 | **Stage 5** | **Scoring Engine & 101 Limit** (Penalty tally, match loss limit) | ✅ مكتمل | 11/11 Tests Passing |
 | **Stage 6** | **Tactical AI & 1,000-Round Simulation** (Zero-knowledge heuristics) | ✅ مكتمل | 10/10 Tests Passing |
 | **Stage 7** | **Egyptian Ahwa Design System & RTL UI** (Pips, Notebook, WCAG AA) | ✅ مكتمل | 20/20 Tests Passing |
-| **Stage 8** | **Interactive Domino Table Web Screen** (`apps/web`) | ⬜ جاهز للبدء | لم تُشغّل بعد |
-| **Stage 9** | **Authoritative Game Server & Rooms** (`apps/server`) | ⬜ لم يبدأ | لم تُشغّل بعد |
+| **Stage 8** | **Interactive Domino Table Web Screen** (`apps/web`) | ✅ مكتمل | 12/12 Tests Passing |
+| **Stage 9** | **Authoritative Game Server & Rooms** (`apps/server`) | ⬜ جاهز للبدء | لم تُشغّل بعد |
 | **Stage 10** | **Real-time Socket Synchronization & Anti-Cheat** | ⬜ لم يبدأ | لم تُشغّل بعد |
 | **Stage 11** | **Multiplayer Web Client Integration** | ⬜ لم يبدأ | لم تُشغّل بعد |
 | **Stage 12** | **Audio Ambiance, Haptics & PWA Polish** | ⬜ لم يبدأ | لم تُشغّل بعد |

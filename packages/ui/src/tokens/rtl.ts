@@ -59,7 +59,7 @@ export const DOMINO_VOCABULARY = {
     2: 'دو',
     3: 'سيه',
     4: 'جوهار',
-    5: 'بيش',
+    5: 'بنج',
     6: 'شيش',
   } as Record<number, string>,
 
