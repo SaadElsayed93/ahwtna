@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>قهوتنا | طاولة دومينو 101 — تجربة يدوية تفاعلية</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --dark-green: #0D3B2E;
+      --table-green: #134B3B;
+      --cream-paper: #F7F3E9;
+      --warm-gold: #D4AF37;
+      --walnut-wood: #2D1A12;
+      --tile-ivory: #FFFFF2;
+      --pip-dark: #1A1A1A;
+      --danger-red: #D32F2F;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: var(--walnut-wood);
+      color: var(--cream-paper);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: rgba(13, 59, 46, 0.95);
+      border-bottom: 2px solid var(--warm-gold);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand h1 {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--warm-gold);
+      letter-spacing: 0.5px;
+    }
+
+    .brand span {
+      font-size: 14px;
+      color: var(--cream-paper);
+      opacity: 0.8;
+    }
+
+    .scoreboard {
+      display: flex;
+      gap: 20px;
+      background: rgba(0,0,0,0.3);
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+
+    .score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .score-label {
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .score-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--warm-gold);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      gap: 16px;
+    }
+
+    /* الطاولة */
+    .table-container {
+      flex: 1;
+      background: radial-gradient(circle, var(--table-green) 0%, var(--dark-green) 100%);
+      border: 8px solid #4a2c1d;
+      border-radius: 20px;
+      box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.6);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+      min-height: 480px;
+    }
+
+    /* منطقة الخصم */
+    .opponent-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 12px;
+    }
+
+    .opponent-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--warm-gold);
+      color: var(--walnut-wood);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 22px;
+      border: 2px solid var(--cream-paper);
+    }
+
+    .opponent-tiles {
+      display: flex;
+      gap: 6px;
+    }
+
+    .hidden-tile {
+      width: 22px;
+      height: 40px;
+      background: linear-gradient(135deg, #1f1f1f, #333);
+      border: 1px solid #555;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+
+    /* منطقة السلسلة على الطاولة */
+    .board-chain-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 0;
+      overflow-x: auto;
+    }
+
+    .board-chain {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 20px;
+      background: rgba(0,0,0,0.15);
+      border-radius: 16px;
+      border: 1px dashed rgba(212, 175, 55, 0.3);
+      min-height: 120px;
+      max-width: 100%;
+    }
+
+    .open-end-indicator {
+      background: rgba(212, 175, 55, 0.2);
+      border: 2px dashed var(--warm-gold);
+      color: var(--warm-gold);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .open-end-indicator:hover {
+      background: rgba(212, 175, 55, 0.4);
+      transform: scale(1.05);
+    }
+
+    /* البلاطات */
+    .domino-tile {
+      width: 44px;
+      height: 84px;
+      background: var(--tile-ivory);
+      color: var(--pip-dark);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #d5d1c4;
+      box-shadow: 2px 4px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.8);
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .domino-tile.horizontal {
+      width: 84px;
+      height: 44px;
+      flex-direction: row;
+    }
+
+    .domino-tile:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    }
+
+    .domino-tile.selected {
+      outline: 3px solid var(--warm-gold);
+      transform: translateY(-8px);
+      box-shadow: 0 10px 20px rgba(212, 175, 55, 0.5);
+    }
+
+    .domino-tile.playable {
+      border: 2px solid var(--warm-gold);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(212, 175, 55, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+    }
+
+    .tile-half {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      padding: 4px;
+      align-items: center;
+      justify-items: center;
+    }
+
+    .tile-divider {
+      height: 1px;
+      background: #bbb;
+      position: relative;
+    }
+
+    .domino-tile.horizontal .tile-divider {
+      width: 1px;
+      height: 100%;
+    }
+
+    .tile-divider::after {
+      content: '';
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--warm-gold);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .pip {
+      width: 6px;
+      height: 6px;
+      background: var(--pip-dark);
+      border-radius: 50%;
+      box-shadow: inset 0 1px 1px rgba(0,0,0,0.5);
+    }
+
+    /* منطقة اللاعب */
+    .player-controls {
+      background: rgba(0,0,0,0.4);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .turn-badge {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .turn-badge.your-turn {
+      background: var(--warm-gold);
+      color: var(--walnut-wood);
+      animation: glow 1s infinite alternate;
+    }
+
+    .turn-badge.ai-turn {
+      background: #444;
+      color: #ccc;
+    }
+
+    @keyframes glow {
+      from { box-shadow: 0 0 5px var(--warm-gold); }
+      to { box-shadow: 0 0 15px var(--warm-gold); }
+    }
+
+    .hand-container {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      min-height: 95px;
+      padding: 6px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    button {
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-draw {
+      background: var(--warm-gold);
+      color: var(--walnut-wood);
+    }
+
+    .btn-draw:hover {
+      background: #e6c34e;
+      transform: translateY(-2px);
+    }
+
+    .btn-draw:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-pass {
+      background: rgba(255,255,255,0.1);
+      color: var(--cream-paper);
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .btn-pass:hover:not(:disabled) {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .btn-pass:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .boneyard-info {
+      font-size: 14px;
+      color: var(--warm-gold);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* التنبيهات وسجل الأحداث */
+    .announcement {
+      text-align: center;
+      padding: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--warm-gold);
+      min-height: 44px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: var(--dark-green);
+      border: 2px solid var(--warm-gold);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    }
+
+    .modal-card h2 {
+      font-size: 26px;
+      color: var(--warm-gold);
+      margin-bottom: 12px;
+    }
+
+    .modal-card p {
+      font-size: 16px;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>قهوتنا | ahwtna ☕</h1>
+      <span>دومينو 101 — طاولة التجربة المباشرة</span>
+    </div>
+    <div class="scoreboard">
+      <div class="score-item">
+        <span class="score-label">أنت</span>
+        <span class="score-val" id="score-player">0</span>
+      </div>
+      <div style="font-size: 20px; color: var(--warm-gold); align-self: center;">:</div>
+      <div class="score-item">
+        <span class="score-label">عم شكشك (AI)</span>
+        <span class="score-val" id="score-ai">0</span>
+      </div>
+      <div class="score-item" style="margin-right: 12px; border-right: 1px solid #444; padding-right: 12px;">
+        <span class="score-label">حد الخسارة</span>
+        <span class="score-val" style="color: var(--danger-red);">101</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="announcement" id="announcement-banner">
+      🎲 مرحباً بك على طاولة قهوتنا! جاري تجهيز الجولة الأولى...
+    </div>
+
+    <div class="table-container">
+      <!-- منطقة الخصم -->
+      <div class="opponent-area">
+        <div class="opponent-info">
+          <div class="avatar">ش</div>
+          <div>
+            <div style="font-weight: 700;">عم شكشك (الذكاء الاصطناعي)</div>
+            <div style="font-size: 12px; color: #aaa;" id="ai-status">يفكر بهدوء...</div>
+          </div>
+        </div>
+        <div class="opponent-tiles" id="ai-tiles-container"></div>
+      </div>
+
+      <!-- سلسلة الدومينو على الطاولة -->
+      <div class="board-chain-area">
+        <div class="board-chain" id="board-chain">
+          <div style="color: rgba(255,255,255,0.4); font-size: 15px;">الطاولة فارغة — في انتظار النقلة الأولى</div>
+        </div>
+      </div>
+
+      <!-- منطقة اللاعب البشري -->
+      <div class="player-controls">
+        <div class="player-header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="avatar" style="background: var(--cream-paper); color: var(--dark-green);">أنت</div>
+            <div class="turn-badge your-turn" id="turn-indicator">دورك للعب!</div>
+          </div>
+          <div class="boneyard-info">
+            <span>مخزون السحب:</span>
+            <strong id="boneyard-count">14</strong> قطعة
+          </div>
+        </div>
+
+        <!-- صينية قطع اللاعب -->
+        <div class="hand-container" id="player-hand"></div>
+
+        <!-- أزرار الإجراءات -->
+        <div class="action-buttons">
+          <button class="btn-draw" id="btn-draw" onclick="handleDrawClick()">سحب بلاطة 📦</button>
+          <button class="btn-pass" id="btn-pass" onclick="handlePassClick()" disabled>تمرير الدور (باصي) 💨</button>
+          <button class="btn-pass" style="border-color: #666;" onclick="restartMatch()">إعادة الماتش من البداية 🔄</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal لاختيار الطرف عند مطابقة البلاطة للطرفين -->
+  <div class="modal-overlay" id="end-selection-modal" style="display: none;">
+    <div class="modal-card">
+      <h2>اختر طرف اللعب 🎯</h2>
+      <p>هذه البلاطة تطابق كلا الطرفين المفتوحين على الطاولة! على أي طرف تريد وضعها؟</p>
+      <div class="modal-actions">
+        <button class="btn-draw" onclick="confirmEndSelection('LEFT')">الطرف الأيسر ⬅️</button>
+        <button class="btn-draw" onclick="confirmEndSelection('RIGHT')">الطرف الأيمن ➡️</button>
+        <button class="btn-pass" onclick="closeEndSelection()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === DOMINO 101 FULL ENGINE IN JAVASCRIPT ===
+    
+    function createTile(a, b) {
+      return [Math.min(a, b), Math.max(a, b)];
+    }
+
+    function generateTileSet() {
+      const tiles = [];
+      for (let a = 0; a <= 6; a++) {
+        for (let b = a; b <= 6; b++) {
+          tiles.push(createTile(a, b));
+        }
+      }
+      return tiles;
+    }
+
+    function shuffle(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    // حالة اللعبة
+    let state = {
+      playerScore: 0,
+      aiScore: 0,
+      roundNumber: 1,
+      playerHand: [],
+      aiHand: [],
+      boneyard: [],
+      boardNodes: [],
+      leftValue: null,
+      rightValue: null,
+      activeTurn: 0, // 0 = Player, 1 = AI
+      isRoundOver: false,
+      selectedTileIndex: null,
+    };
+
+    function startRound() {
+      state.isRoundOver = false;
+      state.boardNodes = [];
+      state.leftValue = null;
+      state.rightValue = null;
+      state.selectedTileIndex = null;
+
+      const set = shuffle(generateTileSet());
+      state.playerHand = set.slice(0, 7);
+      state.aiHand = set.slice(7, 14);
+      state.boneyard = set.slice(14);
+
+      // تحديد البادئ (أعلى دوش)
+      let highestDouble = -1;
+      let starter = 0;
+
+      for (const t of state.playerHand) {
+        if (t[0] === t[1] && t[0] > highestDouble) {
+          highestDouble = t[0];
+          starter = 0;
+        }
+      }
+      for (const t of state.aiHand) {
+        if (t[0] === t[1] && t[0] > highestDouble) {
+          highestDouble = t[0];
+          starter = 1;
+        }
+      }
+
+      state.activeTurn = starter;
+      setAnnouncement(
+        starter === 0 
+          ? '🎲 أنت تبدأ الجولة بأعلى بلاطة! اختر قطعة والعبها على الطاولة.' 
+          : '🤖 عم شكشك صاحب البداية بأعلى بلاطة...'
+      );
+
+      render();
+
+      if (state.activeTurn === 1) {
+        setTimeout(playAITurn, 1200);
+      }
+    }
+
+    function setAnnouncement(msg) {
+      document.getElementById('announcement-banner').innerText = msg;
+    }
+
+    function hasLegalMove(hand) {
+      if (state.boardNodes.length === 0) return hand.length > 0;
+      return hand.some(t => 
+        t[0] === state.leftValue || t[1] === state.leftValue ||
+        t[0] === state.rightValue || t[1] === state.rightValue
+      );
+    }
+
+    function getValidEnds(tile) {
+      if (state.boardNodes.length === 0) return ['LEFT', 'RIGHT'];
+      const ends = [];
+      if (tile[0] === state.leftValue || tile[1] === state.leftValue) ends.push('LEFT');
+      if (tile[0] === state.rightValue || tile[1] === state.rightValue) ends.push('RIGHT');
+      return ends;
+    }
+
+    function handleTileClick(index) {
+      if (state.activeTurn !== 0 || state.isRoundOver) return;
+
+      const tile = state.playerHand[index];
+      const validEnds = getValidEnds(tile);
+
+      if (validEnds.length === 0) {
+        setAnnouncement('❌ هذه البلاطة لا تطابق أي طرف مفتوح على الطاولة!');
+        return;
+      }
+
+      state.selectedTileIndex = index;
+
+      if (validEnds.length === 1 || state.boardNodes.length === 0) {
+        executePlayerMove(index, validEnds[0]);
+      } else {
+        // خيار الطرفين
+        document.getElementById('end-selection-modal').style.display = 'flex';
+      }
+    }
+
+    function confirmEndSelection(targetEnd) {
+      closeEndSelection();
+      if (state.selectedTileIndex !== null) {
+        executePlayerMove(state.selectedTileIndex, targetEnd);
+      }
+    }
+
+    function closeEndSelection() {
+      document.getElementById('end-selection-modal').style.display = 'none';
+    }
+
+    function executePlayerMove(index, targetEnd) {
+      const tile = state.playerHand[index];
+      state.playerHand.splice(index, 1);
+      state.selectedTileIndex = null;
+
+      addTileToBoard(tile, targetEnd);
+      setAnnouncement(`👏 لعبت البلاطة [${tile[0]}|${tile[1]}] بنجاح!`);
+
+      // فحص نهاية الجولة
+      if (state.playerHand.length === 0) {
+        endRoundWithOut(0);
+        return;
+      }
+
+      if (checkBlockedGame()) {
+        endRoundWithBlock();
+        return;
+      }
+
+      state.activeTurn = 1;
+      render();
+      setTimeout(playAITurn, 1200);
+    }
+
+    function handleDrawClick() {
+      if (state.activeTurn !== 0 || state.isRoundOver) return;
+
+      if (hasLegalMove(state.playerHand)) {
+        setAnnouncement('⚠️ لا يمكنك السحب من المخزون لأن لديك نقلة قانونية بالفعل في يدك!');
+        return;
+      }
+
+      if (state.boneyard.length === 0) {
+        setAnnouncement('📦 المخزون فارغ تماماً!');
+        return;
+      }
+
+      const drawn = state.boneyard.shift();
+      state.playerHand.push(drawn);
+      setAnnouncement(`✅ سحبت البلاطة [${drawn[0]}|${drawn[1]}] من المخزون!`);
+      render();
+    }
+
+    function handlePassClick() {
+      if (state.activeTurn !== 0 || state.isRoundOver) return;
+
+      if (hasLegalMove(state.playerHand)) {
+        setAnnouncement('❌ لا يمكنك تمرير الدور وأنت تملك نقلة صالحة على الطاولة!');
+        return;
+      }
+
+      if (state.boneyard.length > 0) {
+        setAnnouncement('⚠️ يجب عليك السحب من المخزون أولاً قبل التمرير!');
+        return;
+      }
+
+      setAnnouncement('💨 مررت الدور لعم شكشك...');
+      state.activeTurn = 1;
+      render();
+
+      if (checkBlockedGame()) {
+        endRoundWithBlock();
+        return;
+      }
+
+      setTimeout(playAITurn, 1200);
+    }
+
+    function playAITurn() {
+      if (state.isRoundOver) return;
+
+      document.getElementById('ai-status').innerText = 'يفكر وينفذ النقلة...';
+
+      if (state.boardNodes.length === 0) {
+        // أول نقلة للـ AI
+        const tile = state.aiHand.shift();
+        addTileToBoard(tile, 'LEFT');
+        setAnnouncement(`💬 عم شكشك بدأ الطاولة بلعب [${tile[0]}|${tile[1]}]`);
+        state.activeTurn = 0;
+        render();
+        return;
+      }
+
+      // البحث عن نقلة قانونية للـ AI
+      let legal = [];
+      for (let i = 0; i < state.aiHand.length; i++) {
+        const t = state.aiHand[i];
+        const ends = getValidEnds(t);
+        for (const e of ends) {
+          legal.push({ index: i, tile: t, end: e });
+        }
+      }
+
+      if (legal.length > 0) {
+        // تفضيل التخلص من البلاطات الثقيلة (Heuristic)
+        legal.sort((a, b) => (b.tile[0] + b.tile[1]) - (a.tile[0] + a.tile[1]));
+        const chosen = legal[0];
+
+        state.aiHand.splice(chosen.index, 1);
+        addTileToBoard(chosen.tile, chosen.end);
+        setAnnouncement(`💬 عم شكشك لعب البلاطة [${chosen.tile[0]}|${chosen.tile[1]}]`);
+
+        if (state.aiHand.length === 0) {
+          endRoundWithOut(1);
+          return;
+        }
+
+        if (checkBlockedGame()) {
+          endRoundWithBlock();
+          return;
+        }
+
+        state.activeTurn = 0;
+        render();
+      } else if (state.boneyard.length > 0) {
+        // السحب للـ AI
+        const drawn = state.boneyard.shift();
+        state.aiHand.push(drawn);
+        setAnnouncement('📦 عم شكشك سحب بلاطة من المخزون');
+        render();
+        setTimeout(playAITurn, 1000); // يحاول اللعب بعد السحب
+      } else {
+        // التمرير للـ AI
+        setAnnouncement('💨 عم شكشك خبط على الطاولة ومرر الدور!');
+        state.activeTurn = 0;
+        render();
+
+        if (checkBlockedGame()) {
+          endRoundWithBlock();
+        }
+      }
+    }
+
+    function addTileToBoard(tile, targetEnd) {
+      if (state.boardNodes.length === 0) {
+        state.boardNodes.push({ tile, isDouble: tile[0] === tile[1] });
+        state.leftValue = tile[0];
+        state.rightValue = tile[1];
+        return;
+      }
+
+      if (targetEnd === 'LEFT') {
+        const matched = state.leftValue;
+        const newOpen = tile[0] === matched ? tile[1] : tile[0];
+        state.boardNodes.unshift({ tile, isDouble: tile[0] === tile[1] });
+        state.leftValue = newOpen;
+      } else {
+        const matched = state.rightValue;
+        const newOpen = tile[0] === matched ? tile[1] : tile[0];
+        state.boardNodes.push({ tile, isDouble: tile[0] === tile[1] });
+        state.rightValue = newOpen;
+      }
+    }
+
+    function checkBlockedGame() {
+      if (state.boardNodes.length === 0) return false;
+      return !hasLegalMove(state.playerHand) && !hasLegalMove(state.aiHand) && state.boneyard.length === 0;
+    }
+
+    function calculateHandSum(hand) {
+      return hand.reduce((acc, t) => acc + t[0] + t[1], 0);
+    }
+
+    function endRoundWithOut(winner) {
+      state.isRoundOver = true;
+      const loser = winner === 0 ? 1 : 0;
+      const penalty = calculateHandSum(loser === 0 ? state.playerHand : state.aiHand);
+
+      if (loser === 0) {
+        state.playerScore += penalty;
+        setAnnouncement(`💥 دومينو! عم شكشك فاز بالجولة، وتلقيت عقوبة +${penalty} نقطة!`);
+      } else {
+        state.aiScore += penalty;
+        setAnnouncement(`🎉 دومينو! خلصت كل ورقك وفزت بالجولة، وعم شكشك تلقى عقوبة +${penalty} نقطة!`);
+      }
+
+      render();
+      checkMatchEnd();
+    }
+
+    function endRoundWithBlock() {
+      state.isRoundOver = true;
+      const pSum = calculateHandSum(state.playerHand);
+      const aiSum = calculateHandSum(state.aiHand);
+
+      if (pSum === aiSum) {
+        setAnnouncement(`🔒 قفلة متعادلة! نقاطك (${pSum}) = نقاط عم شكشك (${aiSum}). 0 نقاط للجميع.`);
+      } else if (pSum < aiSum) {
+        state.aiScore += aiSum;
+        setAnnouncement(`🏆 كسبت القفلة! نقاطك (${pSum}) أقل من عم شكشك (${aiSum}). عم شكشك تلقى +${aiSum} نقطة!`);
+      } else {
+        state.playerScore += pSum;
+        setAnnouncement(`⚠️ عم شكشك كسب القفلة! نقاطك (${pSum}) أعلى من عم شكشك (${aiSum}). تلقيت +${pSum} نقطة!`);
+      }
+
+      render();
+      checkMatchEnd();
+    }
+
+    function checkMatchEnd() {
+      if (state.playerScore >= 101) {
+        setTimeout(() => {
+          alert(`☕ هارد لك يا بطل! تجاوزت الـ 101 نقطة (رصيدك: ${state.playerScore}). عم شكشك كسب الماتش!`);
+          restartMatch();
+        }, 1500);
+      } else if (state.aiScore >= 101) {
+        setTimeout(() => {
+          alert(`🏆 مبرووووك الفوز العظيم! عم شكشك بلغ الـ 101 نقطة (رصيده: ${state.aiScore}). كسبت الماتش بجدارة! 🎉`);
+          restartMatch();
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          state.roundNumber++;
+          startRound();
+        }, 3000);
+      }
+    }
+
+    function restartMatch() {
+      state.playerScore = 0;
+      state.aiScore = 0;
+      state.roundNumber = 1;
+      startRound();
+    }
+
+    // === RENDERING FUNCTIONS ===
+
+    function renderPipPips(count) {
+      const positions = {
+        0: [],
+        1: [4],
+        2: [0, 8],
+        3: [0, 4, 8],
+        4: [0, 2, 6, 8],
+        5: [0, 2, 4, 6, 8],
+        6: [0, 2, 3, 5, 6, 8]
+      };
+      const active = positions[count] || [];
+      let html = '';
+      for (let i = 0; i < 9; i++) {
+        html += active.includes(i) ? '<div class="pip"></div>' : '<div></div>';
+      }
+      return html;
+    }
+
+    function createTileElement(tile, isHorizontal = false) {
+      const div = document.createElement('div');
+      div.className = `domino-tile ${isHorizontal ? 'horizontal' : ''}`;
+      div.innerHTML = `
+        <div class="tile-half">${renderPipPips(tile[0])}</div>
+        <div class="tile-divider"></div>
+        <div class="tile-half">${renderPipPips(tile[1])}</div>
+      `;
+      return div;
+    }
+
+    function render() {
+      // Scoreboard
+      document.getElementById('score-player').innerText = state.playerScore;
+      document.getElementById('score-ai').innerText = state.aiScore;
+      document.getElementById('boneyard-count').innerText = state.boneyard.length;
+
+      // Turn badge
+      const badge = document.getElementById('turn-indicator');
+      if (state.activeTurn === 0) {
+        badge.className = 'turn-badge your-turn';
+        badge.innerText = 'دورك للعب!';
+      } else {
+        badge.className = 'turn-badge ai-turn';
+        badge.innerText = 'دور عم شكشك...';
+      }
+
+      // AI tiles count
+      const aiContainer = document.getElementById('ai-tiles-container');
+      aiContainer.innerHTML = '';
+      for (let i = 0; i < state.aiHand.length; i++) {
+        const t = document.createElement('div');
+        t.className = 'hidden-tile';
+        aiContainer.appendChild(t);
+      }
+      document.getElementById('ai-status').innerText = `يحمل ${state.aiHand.length} قطع`;
+
+      // Board Chain
+      const chain = document.getElementById('board-chain');
+      chain.innerHTML = '';
+      if (state.boardNodes.length === 0) {
+        chain.innerHTML = '<div style="color: rgba(255,255,255,0.4); font-size: 15px;">الطاولة فارغة — في انتظار النقلة الأولى</div>';
+      } else {
+        // Left Open End Indicator
+        const leftEnd = document.createElement('div');
+        leftEnd.className = 'open-end-indicator';
+        leftEnd.innerHTML = `<span>الطرف الأيسر</span><strong>(${state.leftValue})</strong>`;
+        chain.appendChild(leftEnd);
+
+        // Tiles
+        state.boardNodes.forEach(node => {
+          const tEl = createTileElement(node.tile, !node.isDouble);
+          chain.appendChild(tEl);
+        });
+
+        // Right Open End Indicator
+        const rightEnd = document.createElement('div');
+        rightEnd.className = 'open-end-indicator';
+        rightEnd.innerHTML = `<span>الطرف الأيمن</span><strong>(${state.rightValue})</strong>`;
+        chain.appendChild(rightEnd);
+      }
+
+      // Player Hand
+      const handContainer = document.getElementById('player-hand');
+      handContainer.innerHTML = '';
+      state.playerHand.forEach((tile, idx) => {
+        const tEl = createTileElement(tile);
+        const validEnds = getValidEnds(tile);
+        if (validEnds.length > 0 && state.activeTurn === 0) {
+          tEl.classList.add('playable');
+        }
+        tEl.onclick = () => handleTileClick(idx);
+        handContainer.appendChild(tEl);
+      });
+
+      // Controls State
+      const playerCanPlay = hasLegalMove(state.playerHand);
+      document.getElementById('btn-draw').disabled = playerCanPlay || state.boneyard.length === 0 || state.activeTurn !== 0;
+      document.getElementById('btn-pass').disabled = playerCanPlay || state.boneyard.length > 0 || state.activeTurn !== 0;
+    }
+
+    // Start on load
+    startRound();
+  </script>
+</body>
+</html>
