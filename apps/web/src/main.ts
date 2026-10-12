@@ -276,6 +276,50 @@ function render() {
     `;
   } else {
     // رسم السلسلة المتصلة هندسياً بالكامل حيث كل بلاطة تلمس البلاطة التالية وتلف معها عند الحواف
+    const ghostSlotsHtml = (() => {
+      if (!controller.selectedTile || isBoardEmpty(controller.board)) return '';
+      const playableEnds = getPlayableEnds(controller.selectedTile, controller.board);
+      let slots = '';
+
+      if (playableEnds.includes('LEFT') && snakeLayout.leftTarget) {
+        slots += `
+          <button id="ghost-slot-left" class="ahwa-dashed-ghost-slot"
+                  title="العب على هذا الطرف (${snakeLayout.leftTarget.value})"
+                  style="position: absolute; left: ${snakeLayout.leftTarget.x}px; top: ${snakeLayout.leftTarget.y}px;
+                         width: ${snakeLayout.leftTarget.width}px; height: ${snakeLayout.leftTarget.height}px;
+                         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+                         z-index: 60; cursor: pointer; border-radius: 8px; animation: ahwa-pulse-slot 1.3s infinite ease-in-out;">
+            <span style="font-weight: 900; font-size: 16px; color: ${AHWA_COLORS.warmGold}; text-shadow: 0 1px 4px #000;">
+              ${snakeLayout.leftTarget.value}
+            </span>
+            <span style="font-size: 9px; font-weight: 700; color: #FFF; background: #2E7D32; padding: 1px 5px; border-radius: 4px; pointer-events: none;">
+              العب هنا
+            </span>
+          </button>
+        `;
+      }
+
+      if (playableEnds.includes('RIGHT') && snakeLayout.rightTarget) {
+        slots += `
+          <button id="ghost-slot-right" class="ahwa-dashed-ghost-slot"
+                  title="العب على هذا الطرف (${snakeLayout.rightTarget.value})"
+                  style="position: absolute; left: ${snakeLayout.rightTarget.x}px; top: ${snakeLayout.rightTarget.y}px;
+                         width: ${snakeLayout.rightTarget.width}px; height: ${snakeLayout.rightTarget.height}px;
+                         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+                         z-index: 60; cursor: pointer; border-radius: 8px; animation: ahwa-pulse-slot 1.3s infinite ease-in-out;">
+            <span style="font-weight: 900; font-size: 16px; color: ${AHWA_COLORS.warmGold}; text-shadow: 0 1px 4px #000;">
+              ${snakeLayout.rightTarget.value}
+            </span>
+            <span style="font-size: 9px; font-weight: 700; color: #FFF; background: #2E7D32; padding: 1px 5px; border-radius: 4px; pointer-events: none;">
+              العب هنا
+            </span>
+          </button>
+        `;
+      }
+
+      return slots;
+    })();
+
     chainContentHtml = `
       <div style="width: 100%; height: 100%; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 20px 10px;">
         <div class="ahwa-board-canvas" style="position: relative; width: ${Math.max(snakeLayout.totalWidth, 280)}px; height: ${Math.max(snakeLayout.totalHeight, 160)}px; min-width: ${Math.max(snakeLayout.totalWidth, 280)}px; min-height: ${Math.max(snakeLayout.totalHeight, 160)}px; transition: all 0.3s ease;">
@@ -298,48 +342,35 @@ function render() {
               </div>
             `;
           }).join('')}
+          ${ghostSlotsHtml}
         </div>
       </div>
     `;
   }
 
-  // أهداف الأطراف المفتوحة على سطح الطاولة (Interactive Open End Slots)
+  // شارات الأطراف المفتوحة أعلى الطاولة للعلم بالقيم المفتوحة
   let tableOpenEndsHeaderHtml = '';
   if (!isBoardEmpty(controller.board)) {
     const leftVal = controller.board.leftValue!;
     const rightVal = controller.board.rightValue!;
-    const canPlayLeft = controller.selectedTile && getPlayableEnds(controller.selectedTile, controller.board).includes('LEFT');
-    const canPlayRight = controller.selectedTile && getPlayableEnds(controller.selectedTile, controller.board).includes('RIGHT');
 
     tableOpenEndsHeaderHtml = `
       <div style="position: absolute; top: 12px; left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: center; z-index: 20; pointer-events: none;">
-        <!-- الطرف الأيمن (LEFT end in logic) -->
-        <button id="btn-target-left" class="ahwa-end-target ${canPlayLeft ? 'is-target-active' : ''}"
-                style="pointer-events: auto; display: flex; align-items: center; gap: 8px; background: rgba(13,59,46,0.9);
-                       border: 2px solid ${canPlayLeft ? AHWA_COLORS.warmGold : 'rgba(212,175,55,0.4)'};
-                       border-radius: 20px; padding: 6px 14px; color: ${AHWA_COLORS.paleGold}; cursor: ${canPlayLeft ? 'pointer' : 'default'};
-                       box-shadow: ${canPlayLeft ? '0 0 16px rgba(212,175,55,0.8)' : '0 4px 10px rgba(0,0,0,0.5)'};
-                       transition: all 0.2s ease;">
-          <span style="font-size: 13px; font-weight: 700;">الطرف الأيمن</span>
-          <span style="font-size: 18px; font-weight: 900; color: ${AHWA_COLORS.warmGold}; background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(13,59,46,0.92);
+                    border: 1.5px solid rgba(212,175,55,0.45); border-radius: 16px; padding: 4px 12px; color: ${AHWA_COLORS.paleGold};">
+          <span style="font-size: 12px; font-weight: 700;">طرف الطاولة:</span>
+          <span style="font-size: 16px; font-weight: 900; color: ${AHWA_COLORS.warmGold}; background: rgba(0,0,0,0.5); padding: 1px 7px; border-radius: 6px;">
             ${leftVal}
           </span>
-          ${canPlayLeft ? '<span style="font-size: 11px; background: #2E7D32; color: #fff; padding: 2px 6px; border-radius: 4px;">العب هنا</span>' : ''}
-        </button>
+        </div>
 
-        <!-- الطرف الأيسر (RIGHT end in logic) -->
-        <button id="btn-target-right" class="ahwa-end-target ${canPlayRight ? 'is-target-active' : ''}"
-                style="pointer-events: auto; display: flex; align-items: center; gap: 8px; background: rgba(13,59,46,0.9);
-                       border: 2px solid ${canPlayRight ? AHWA_COLORS.warmGold : 'rgba(212,175,55,0.4)'};
-                       border-radius: 20px; padding: 6px 14px; color: ${AHWA_COLORS.paleGold}; cursor: ${canPlayRight ? 'pointer' : 'default'};
-                       box-shadow: ${canPlayRight ? '0 0 16px rgba(212,175,55,0.8)' : '0 4px 10px rgba(0,0,0,0.5)'};
-                       transition: all 0.2s ease;">
-          ${canPlayRight ? '<span style="font-size: 11px; background: #2E7D32; color: #fff; padding: 2px 6px; border-radius: 4px;">العب هنا</span>' : ''}
-          <span style="font-size: 18px; font-weight: 900; color: ${AHWA_COLORS.warmGold}; background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(13,59,46,0.92);
+                    border: 1.5px solid rgba(212,175,55,0.45); border-radius: 16px; padding: 4px 12px; color: ${AHWA_COLORS.paleGold};">
+          <span style="font-size: 16px; font-weight: 900; color: ${AHWA_COLORS.warmGold}; background: rgba(0,0,0,0.5); padding: 1px 7px; border-radius: 6px;">
             ${rightVal}
           </span>
-          <span style="font-size: 13px; font-weight: 700;">الطرف الأيسر</span>
-        </button>
+          <span style="font-size: 12px; font-weight: 700;">طرف الطاولة:</span>
+        </div>
       </div>
     `;
   }
@@ -416,30 +447,6 @@ function render() {
     id: 'btn-restart',
   });
 
-  // نافذة اختيار الطرف عند تحديد بلاطة تنفع للطرفين
-  let chooseEndDialogHtml = '';
-  if (controller.selectedTile && controller.board.leftValue !== null && controller.board.rightValue !== null) {
-    const selectedName = getEgyptianTileName(controller.selectedTile[0], controller.selectedTile[1]);
-    chooseEndDialogHtml = `
-      <div style="position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
-                  background: ${AHWA_COLORS.walnutWood}; padding: 14px 22px; border-radius: 16px;
-                  border: 2px solid ${AHWA_COLORS.warmGold}; box-shadow: 0 10px 35px rgba(0,0,0,0.9);
-                  display: flex; gap: 14px; align-items: center; z-index: 100; max-width: 90%;">
-        <span style="font-weight: 700; color: ${AHWA_COLORS.creamPaper}; font-size: 15px; white-space: nowrap;">
-          العب ${selectedName} [${controller.selectedTile[0]}|${controller.selectedTile[1]}] على:
-        </span>
-        <button id="btn-play-left" class="ahwa-btn ahwa-btn-gold ahwa-btn-md" style="min-height: 48px; min-width: 120px;">
-          الطرف الأيمن (${controller.board.leftValue})
-        </button>
-        <button id="btn-play-right" class="ahwa-btn ahwa-btn-gold ahwa-btn-md" style="min-height: 48px; min-width: 120px;">
-          الطرف الأيسر (${controller.board.rightValue})
-        </button>
-        <button id="btn-cancel-select" class="ahwa-btn ahwa-btn-wood ahwa-btn-sm" style="min-height: 48px;">
-          إلغاء
-        </button>
-      </div>
-    `;
-  }
 
   // المودال
   let modalHtml = '';
@@ -512,18 +519,16 @@ function render() {
         📢 ${controller.statusMessage || (isUserTurn ? 'دورك للعب!' : 'دور الخصم...')}
       </div>
 
-      <!-- طاولة الدومينو التراثية الكبرى (مع خوارزمية الالتفاف الذكي Snake Layout) -->
-      <div style="flex: 1; min-height: 380px; background: radial-gradient(circle, ${AHWA_COLORS.tableGreen} 0%, ${AHWA_COLORS.darkGreen} 100%);
+      <!-- طاولة الدومينو التراثية الكبرى (مع خوارزمية الالتفاف الذكي Snake Layout والمربعات المنقطة) -->
+      <div class="ahwa-board-felt" style="flex: 1; min-height: 380px; background: radial-gradient(circle, ${AHWA_COLORS.tableGreen} 0%, ${AHWA_COLORS.darkGreen} 100%);
                   border: 8px solid ${AHWA_COLORS.walnutWood}; border-radius: 20px;
                   box-shadow: inset 0 0 60px rgba(0,0,0,0.85), 0 10px 30px rgba(0,0,0,0.6);
-                  position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;">
+                  position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; cursor: default;">
         
         ${tableOpenEndsHeaderHtml}
 
-        <!-- حاوية السلسلة -->
+        <!-- حاوية السلسلة مع المربعات المنقطة على الطاولة مباشرة -->
         ${chainContentHtml}
-
-        ${chooseEndDialogHtml}
       </div>
 
       <!-- صينية ورق اللاعب وأزرار السحب والتمرير -->
@@ -582,31 +587,27 @@ function render() {
     });
   });
 
-  // النقر على أهداف الأطراف المفتوحة على سطح الطاولة مباشرة
-  document.getElementById('btn-target-left')?.addEventListener('click', () => {
+  // النقر على المربعات المنقطة على الطاولة مباشرة (Dashed Ghost Slots on Table)
+  document.getElementById('ghost-slot-left')?.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (controller.selectedTile) {
       controller.playPlayerMove(controller.selectedTile, 'LEFT');
     }
   });
 
-  document.getElementById('btn-target-right')?.addEventListener('click', () => {
+  document.getElementById('ghost-slot-right')?.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (controller.selectedTile) {
       controller.playPlayerMove(controller.selectedTile, 'RIGHT');
     }
   });
 
-  // أزرار الحوار السفلي لاختيار الطرف
-  document.getElementById('btn-play-left')?.addEventListener('click', () => {
-    if (controller.selectedTile) controller.playPlayerMove(controller.selectedTile, 'LEFT');
-  });
-
-  document.getElementById('btn-play-right')?.addEventListener('click', () => {
-    if (controller.selectedTile) controller.playPlayerMove(controller.selectedTile, 'RIGHT');
-  });
-
-  document.getElementById('btn-cancel-select')?.addEventListener('click', () => {
-    controller.selectedTile = null;
-    render();
+  // النقر على أرضية الطاولة لإلغاء التحديد
+  document.querySelector('.ahwa-board-felt')?.addEventListener('click', () => {
+    if (controller.selectedTile) {
+      controller.selectedTile = null;
+      render();
+    }
   });
 }
 

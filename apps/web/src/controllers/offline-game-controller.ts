@@ -373,12 +373,20 @@ export class OfflineGameController {
       return;
     }
 
+    // إذا نقر اللاعب على نفس البلاطة المحددة حالياً: نقوم بإلغاء التحديد
+    if (this.selectedTile && tileEquals(this.selectedTile, tile)) {
+      this.selectedTile = null;
+      this.statusMessage = 'تم إلغاء التحديد. اختر بلاطة للعب.';
+      this.notifyUpdate();
+      return;
+    }
+
     if (ends.length === 1) {
       this.playPlayerMove(tile, ends[0]!);
     } else {
-      // تطابق كلا الطرفين: نحدد البلاطة ليختار اللاعب الطرف المطلوب
+      // تطابق كلا الطرفين: نحدد البلاطة ليختار اللاعب الطرف المطلوب عبر المربعات المنقطة على الطاولة
       this.selectedTile = tile;
-      this.statusMessage = `اختر الطرف المطلوب للعب ${tileName} [${tile[0]}|${tile[1]}]`;
+      this.statusMessage = `اختر مكان اللعب بالضغط على أحد المربعين المنقطين على الطاولة (${this.board.leftValue} أو ${this.board.rightValue})`;
       this.notifyUpdate();
     }
   }

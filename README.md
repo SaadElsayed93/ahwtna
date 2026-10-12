@@ -138,7 +138,7 @@ npm run play
 ```bash
 npm run test
 ```
-> يُشغل جميع الـ 98 اختباراً آلياً عبر الحزم الخمس بواسطة Turborepo و Vitest.
+> يُشغل جميع الـ 99 اختباراً آلياً عبر الحزم الخمس بواسطة Turborepo و Vitest بنسبة نجاح 100%.
 
 ### 6. فحص الأنواع الصارم وتجميع الكود
 ```bash
@@ -160,7 +160,7 @@ npm run build       # بناء الكود المصدري لجميع الحزم
 | **Stage 5** | **Scoring Engine & 101 Limit** (Penalty tally, match loss limit) | ✅ مكتمل | 11/11 Tests Passing |
 | **Stage 6** | **Tactical AI & 1,000-Round Simulation** (Zero-knowledge heuristics) | ✅ مكتمل | 10/10 Tests Passing |
 | **Stage 7** | **Egyptian Ahwa Design System & RTL UI** (Pips, Notebook, WCAG AA) | ✅ مكتمل | 20/20 Tests Passing |
-| **Stage 8** | **Interactive Domino Table Web Screen** (`apps/web`) | ✅ مكتمل | 12/12 Tests Passing |
+| **Stage 8** | **Interactive Domino Table Web Screen** (`apps/web` مع شبكة متصلة هندسياً وخانات منقطة على الطاولة لاختيار الطرف) | ✅ مكتمل | 13/13 Tests Passing |
 | **Stage 9** | **Authoritative Game Server & Rooms** (`apps/server`) | ⬜ جاهز للبدء | لم تُشغّل بعد |
 | **Stage 10** | **Real-time Socket Synchronization & Anti-Cheat** | ⬜ لم يبدأ | لم تُشغّل بعد |
 | **Stage 11** | **Multiplayer Web Client Integration** | ⬜ لم يبدأ | لم تُشغّل بعد |

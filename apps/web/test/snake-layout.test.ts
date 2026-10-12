@@ -70,4 +70,26 @@ describe('Connected Snake Domino Layout (TEST-8.4)', () => {
     expect(layout.leftOpenValue).toBe(6);
     expect(layout.rightOpenValue).toBe(3);
   });
+
+  it('computes on-table dashed ghost slot targets at the exact open physical extremities', () => {
+    let board = createEmptyBoard();
+    board = playTileOnBoard([6, 6], 'LEFT', board);
+    board = playTileOnBoard([6, 3], 'RIGHT', board);
+
+    const layout = computeConnectedSnakeLayout(board, 4);
+    expect(layout.leftTarget).not.toBeNull();
+    expect(layout.rightTarget).not.toBeNull();
+
+    expect(layout.leftTarget?.value).toBe(6);
+    expect(layout.rightTarget?.value).toBe(3);
+
+    // leftTarget is positioned to the left of the chain with positive coordinates
+    expect(layout.leftTarget!.x).toBeGreaterThanOrEqual(0);
+    expect(layout.leftTarget!.y).toBeGreaterThanOrEqual(0);
+
+    // rightTarget is positioned adjacent to the last tile
+    expect(layout.rightTarget!.x).toBeGreaterThan(layout.leftTarget!.x);
+    expect(layout.rightTarget!.width).toBe(64);
+    expect(layout.rightTarget!.height).toBe(32);
+  });
 });

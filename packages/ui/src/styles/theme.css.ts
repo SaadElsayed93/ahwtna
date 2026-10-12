@@ -108,6 +108,24 @@ html[dir="rtl"], body[dir="rtl"], .ahwa-root-rtl {
   animation: ahwa-tile-slam 0.22s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
 }
 
+@keyframes ahwa-pulse-slot {
+  0% { transform: scale(1); box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+  50% { transform: scale(1.05); box-shadow: 0 0 22px rgba(212, 175, 55, 0.95); }
+  100% { transform: scale(1); box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); }
+}
+
+.ahwa-dashed-ghost-slot {
+  border: 2.5px dashed var(--ahwa-warm-gold) !important;
+  background: rgba(212, 175, 55, 0.22) !important;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.ahwa-dashed-ghost-slot:hover {
+  background: rgba(212, 175, 55, 0.45) !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 24px var(--ahwa-warm-gold) !important;
+}
+
 /* ==========================================================================
    Tactile Ahwa Buttons
    ========================================================================== */

@@ -17,12 +17,21 @@ export interface ConnectedSnakeTile {
   isLast: boolean;
 }
 
+export interface GhostSlotTarget {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  value: PipValue;
+  end: 'LEFT' | 'RIGHT';
+}
+
 export interface ConnectedBoardLayout {
   tiles: ConnectedSnakeTile[];
   totalWidth: number;
   totalHeight: number;
-  leftTarget: { x: number; y: number; value: PipValue } | null;
-  rightTarget: { x: number; y: number; value: PipValue } | null;
+  leftTarget: GhostSlotTarget | null;
+  rightTarget: GhostSlotTarget | null;
   leftOpenValue: PipValue | null;
   rightOpenValue: PipValue | null;
 }
@@ -315,7 +324,55 @@ export function computeConnectedSnakeLayout(
     }
   }
 
-  // حساب أبعاد الصندوق المحيط لتوسيط السلسلة بدقة
+  // تحديد المواضع الفيزيائية الدقيقة للمربعات المنقطة (Ghost Slot Targets)
+  let rawLeftTarget: { x: number; y: number; width: number; height: number } | null = null;
+  let rawRightTarget: { x: number; y: number; width: number; height: number } | null = null;
+
+  if (placedTiles.length > 0 && board.leftValue !== null) {
+    const firstP = placedTiles[0]!;
+    if (firstP.isDouble) {
+      rawLeftTarget = {
+        x: firstP.pixelX - 2 * S,
+        y: 0,
+        width: 2 * S,
+        height: S,
+      };
+    } else {
+      rawLeftTarget = {
+        x: firstP.pixelX - 2 * S,
+        y: firstP.pixelY,
+        width: 2 * S,
+        height: S,
+      };
+    }
+  }
+
+  if (placedTiles.length > 0 && board.rightValue !== null) {
+    if (inTurn && turnStep === 2) {
+      rawRightTarget = {
+        x: col * S,
+        y: (row + 3) * S,
+        width: S,
+        height: 2 * S,
+      };
+    } else if (dir === 1) {
+      rawRightTarget = {
+        x: col * S,
+        y: row * S,
+        width: 2 * S,
+        height: S,
+      };
+    } else {
+      rawRightTarget = {
+        x: (col - 1) * S,
+        y: row * S,
+        width: 2 * S,
+        height: S,
+      };
+    }
+  }
+
+  // حساب أبعاد الصندوق المحيط لتوسيط السلسلة والأهداف بدقة
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -328,9 +385,24 @@ export function computeConnectedSnakeLayout(
     maxY = Math.max(maxY, t.pixelY + t.pixelH);
   }
 
-  const padding = 24;
-  const offsetX = minX < padding ? padding - minX : padding;
-  const offsetY = minY < padding ? padding - minY : padding;
+  if (rawLeftTarget) {
+    minX = Math.min(minX, rawLeftTarget.x);
+    maxX = Math.max(maxX, rawLeftTarget.x + rawLeftTarget.width);
+    minY = Math.min(minY, rawLeftTarget.y);
+    maxY = Math.max(maxY, rawLeftTarget.y + rawLeftTarget.height);
+  }
+
+  if (rawRightTarget) {
+    minX = Math.min(minX, rawRightTarget.x);
+    maxX = Math.max(maxX, rawRightTarget.x + rawRightTarget.width);
+    minY = Math.min(minY, rawRightTarget.y);
+    maxY = Math.max(maxY, rawRightTarget.y + rawRightTarget.height);
+  }
+
+  const paddingX = 40;
+  const paddingY = 30;
+  const offsetX = minX < paddingX ? paddingX - minX : paddingX;
+  const offsetY = minY < paddingY ? paddingY - minY : paddingY;
 
   const resultTiles: ConnectedSnakeTile[] = placedTiles.map((t) => ({
     nodeIndex: t.nodeIndex,
@@ -347,31 +419,30 @@ export function computeConnectedSnakeLayout(
     isLast: t.isLast,
   }));
 
-  const totalWidth = maxX - minX + padding * 2;
-  const totalHeight = maxY - minY + padding * 2;
+  const totalWidth = maxX - minX + paddingX * 2;
+  const totalHeight = maxY - minY + paddingY * 2;
 
-  // تحديد مواقع أهداف الأطراف المفتوحة
-  const firstTile = resultTiles[0];
-  const lastTile = resultTiles[resultTiles.length - 1];
+  const leftTarget: GhostSlotTarget | null = rawLeftTarget && board.leftValue !== null
+    ? {
+        x: rawLeftTarget.x + offsetX,
+        y: rawLeftTarget.y + offsetY,
+        width: rawLeftTarget.width,
+        height: rawLeftTarget.height,
+        value: board.leftValue,
+        end: 'LEFT',
+      }
+    : null;
 
-  let leftTarget: { x: number; y: number; value: PipValue } | null = null;
-  let rightTarget: { x: number; y: number; value: PipValue } | null = null;
-
-  if (firstTile && board.leftValue !== null) {
-    leftTarget = {
-      x: Math.max(0, firstTile.x - 45),
-      y: firstTile.y,
-      value: board.leftValue,
-    };
-  }
-
-  if (lastTile && board.rightValue !== null) {
-    rightTarget = {
-      x: lastTile.x + lastTile.width + 12,
-      y: lastTile.y,
-      value: board.rightValue,
-    };
-  }
+  const rightTarget: GhostSlotTarget | null = rawRightTarget && board.rightValue !== null
+    ? {
+        x: rawRightTarget.x + offsetX,
+        y: rawRightTarget.y + offsetY,
+        width: rawRightTarget.width,
+        height: rawRightTarget.height,
+        value: board.rightValue,
+        end: 'RIGHT',
+      }
+    : null;
 
   return {
     tiles: resultTiles,
