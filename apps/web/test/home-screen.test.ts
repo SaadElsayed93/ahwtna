@@ -17,6 +17,9 @@ describe('Egyptian Home Screen Component (Home Screen)', () => {
     expect(html).toContain('دومينو أمريكاني 101');
 
     // Verify mode buttons exist
+    expect(html).toContain('btn-quick-match-2p');
+    expect(html).toContain('btn-quick-match-4p');
+    expect(html).toContain('ماتش عشوائي أونلاين');
     expect(html).toContain('btn-start-offline-2p');
     expect(html).toContain('btn-start-offline-4p');
     expect(html).toContain('btn-open-create-room-modal');

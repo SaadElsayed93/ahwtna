@@ -8,6 +8,7 @@ export interface HomeScreenCallbacks {
   onStartOffline4P: (playerName: string) => void;
   onCreateOnlineRoom: (mode: 'INDIVIDUAL_2P' | 'TEAM_4P') => void;
   onJoinOnlineRoom: (roomCode: string) => void;
+  onQuickMatchOnline: (mode: 'INDIVIDUAL_2P' | 'TEAM_4P') => void;
 }
 
 export interface HomeScreenState {
@@ -173,6 +174,38 @@ export function renderHomeScreen(
             <!-- شبكة خيارات اللعب (أوفلاين وأونلاين) -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
               
+              <!-- خيار مميز: ماتش عشوائي أونلاين سريع (Quick Match) -->
+              <div style="grid-column: 1 / -1; background: linear-gradient(135deg, rgba(212,175,55,0.18) 0%, rgba(13,59,46,0.85) 100%);
+                          border: 2px solid ${AHWA_COLORS.warmGold}; border-radius: 16px; padding: 18px 22px;
+                          display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
+                          box-shadow: 0 0 25px rgba(212,175,55,0.25);">
+                <div style="flex: 1; min-width: 260px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span style="font-size: 20px;">⚡</span>
+                    <span style="font-weight: 900; font-size: 19px; color: ${AHWA_COLORS.warmGold};">
+                      ماتش عشوائي أونلاين (العب مع أي حد فوراً)
+                    </span>
+                    <span style="font-size: 11px; background: #E65100; color: #FFF; font-weight: 800; padding: 2px 8px; border-radius: 6px; animation: ahwa-pulse 1.3s infinite ease-in-out;">
+                      توفيق سريع 🔥
+                    </span>
+                  </div>
+                  <p style="font-size: 13px; color: ${AHWA_COLORS.creamPaper}; opacity: 0.9; margin: 0; line-height: 1.5;">
+                    مش محتاج كود ولا صاحب مستنيك! دوس والسيستم هيلاقيلك منافس عشوائي أو يفتحلك ترابيزة جاهزة للمشاركين تلقائياً.
+                  </p>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                  <button id="btn-quick-match-2p" class="ahwa-btn ahwa-btn-gold ahwa-btn-md"
+                          style="font-size: 14px; font-weight: 900; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(212,175,55,0.4);">
+                    <span>🎲 ماتش فردي عشوائي (2P)</span>
+                  </button>
+                  <button id="btn-quick-match-4p" class="ahwa-btn ahwa-btn-wood ahwa-btn-md"
+                          style="font-size: 14px; font-weight: 900; display: flex; align-items: center; gap: 6px;">
+                    <span>👥 ماتش زوجي عشوائي (4P)</span>
+                  </button>
+                </div>
+              </div>
+
               <!-- خيار 1: لعب فردي أوفلاين (2P) -->
               <div style="background: rgba(0,0,0,0.35); border: 2px solid ${AHWA_COLORS.warmGold}; border-radius: 16px; padding: 18px;
                           display: flex; flex-direction: column; justify-content: space-between; gap: 14px; transition: transform 0.2s ease;">

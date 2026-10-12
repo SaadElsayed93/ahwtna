@@ -155,10 +155,12 @@ export function renderLobbyScreen(
           <div style="font-size: 16px; font-weight: 800; color: ${AHWA_COLORS.warmGold};">
             ${allReady
               ? '🎉 اكتملت الطاولة والجميع جاهز! تبدأ الجولة الآن...'
-              : `في انتظار اكتمال اللاعبين (${room.players.length}/${totalSeats}) وتأكيد الجاهزية`}
+              : `⏳ في انتظار اكتمال المقاعد (${room.players.length}/${totalSeats}) وتأكيد الجاهزية`}
           </div>
-          <div style="font-size: 12px; color: ${AHWA_COLORS.creamPaper}; opacity: 0.75; margin-top: 4px;">
-            شارك كود الغرفة [${room.roomId}] مع أصحابك للدخول والجلوس على المقاعد المتاحة.
+          <div style="font-size: 12px; color: ${AHWA_COLORS.creamPaper}; opacity: 0.8; margin-top: 4px;">
+            ${room.players.length < totalSeats
+              ? `🔍 جاري البحث عن منافسين أونلاين.. كما يمكنك مشاركة كود الغرفة [${room.roomId}] مباشرة مع أصحابك!`
+              : 'اضغط على زر (أنا جاهز يا معلم) أدناه لافتتاح الجولة فوراً.'}
           </div>
         </div>
 

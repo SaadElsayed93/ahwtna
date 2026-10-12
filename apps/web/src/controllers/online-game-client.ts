@@ -260,6 +260,40 @@ export class OnlineGameClient {
     });
   }
 
+  public async quickMatch(
+    playerName: string,
+    mode: GameMode = 'INDIVIDUAL_2P'
+  ): Promise<{ roomId: string; room: RoomPublicState; player: RoomPlayer; roundStarted: boolean }> {
+    if (!this.socket) this.connect();
+    return new Promise((resolve, reject) => {
+      this.socket?.emit(
+        'room:quick_match',
+        { playerName, mode, autoReady: true },
+        (res: {
+          success?: boolean;
+          roomId: string;
+          room: RoomPublicState;
+          player: RoomPlayer;
+          roundStarted?: boolean;
+          error?: string;
+          message?: string;
+        }) => {
+          if (res.error) return reject(new Error(res.message || res.error));
+          this.currentRoom = res.room;
+          this.myPlayer = res.player;
+          this.addFeedMessage(`⚡ انضممت لماتش أونلاين عشوائي في ترابيزة [${res.roomId}].`);
+          this.notify();
+          resolve({
+            roomId: res.roomId,
+            room: res.room,
+            player: res.player,
+            roundStarted: !!res.roundStarted,
+          });
+        }
+      );
+    });
+  }
+
   public async chooseSeat(seat: SeatIndex): Promise<void> {
     if (!this.currentRoom) return;
     return new Promise((resolve, reject) => {

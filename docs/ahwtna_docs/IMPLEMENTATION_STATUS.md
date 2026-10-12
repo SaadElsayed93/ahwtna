@@ -1,7 +1,7 @@
 # قهوتنا | ahwtna — تقرير حالة التنفيذ (Implementation Status)
 
 > **تاريخ التحديث:** أكتوبر 2026  
-> **الحالة العامة:** تم إنجاز **المراحل 0 إلى 12 (Egyptian Audio Ambiance, Haptics & PWA Polish)** بنجاح 100%. واجهة الويب متكاملة بالكامل مع خادم السوكت وغرف اللعب الجماعي وشاشة اللوبي التراثية، ومحرك المؤثرات الصوتية التراثية والاهتزاز التفاعلي، والتثبيت كتطبيق تقدمي (PWA) مع عزل اتصالات السوكت، واجتياز 157 اختباراً آلياً بنسبة نجاح 100%.
+> **الحالة العامة:** تم إنجاز **المراحل 0 إلى 12 (Egyptian Audio Ambiance, Haptics & PWA Polish)** بالإضافة إلى **نظام التوفيق العشوائي الأونلاين السريع (Quick Random Matchmaking ⚡)** بنجاح 100%. واجهة الويب متكاملة بالكامل مع خادم السوكت وغرف اللعب الجماعي ومحرك المؤثرات الصوتية والاهتزاز التفاعلي، واجتياز 161 اختباراً آلياً بنسبة نجاح 100%.
 
 ---
 
@@ -65,10 +65,10 @@
 | **Stage 6** | Offline AI & Mass Simulation | ✅ مكتمل | 10/10 tests passed (100%) | ENG-070 إلى ENG-074 (محاكاة 1,000 جولة دون deadlock) |
 | **Stage 7** | Egyptian Ahwa Design System | ✅ مكتمل | 20/20 tests passed (100%) | TEST-7.1 إلى TEST-7.3 (البلاطات ونوتة الحساب وWCAG AA) |
 | **Stage 8** | Interactive Domino Table UI | ✅ مكتمل | 17/17 tests passed (100%) | بوابة الشاشة الرئيسية المصرية + طاولة تفاعلية بالشبكة وخانات منقطة |
-| **Stage 9** | Authoritative Server & Rooms | ✅ مكتمل | 21/21 tests passed (100%) | TEST-9.1 إلى TEST-9.5 (الغرف والمقاعد والمحرك الموثوق والسوكت) |
+| **Stage 9** | Authoritative Server & Rooms | ✅ مكتمل | 34/34 tests passed (100%) | TEST-9.1 إلى TEST-9.6 (الغرف والمقاعد والتوفيق العشوائي السريع والسوكت) |
 | **Stage 10** | Real-time Sync & Anti-Cheat | ✅ مكتمل | 31/31 tests passed (100%) | ENG-080 إلى ENG-086 ومؤقت الـ 30 ثانية ونافذة الـ 45 ثانية |
-| **Stage 11** | Multiplayer Web Client | ✅ مكتمل | 27/27 tests passed (100%) | عميل السوكت وشاشة اللوبي ومؤقت الـ 30ث الدائري وشريط الأحداث |
-| **Stage 12** | Egyptian Audio & PWA Polish | ✅ مكتمل | 40/40 tests passed (100%) | محرك الصوت التوليدي والاهتزاز وحفظ التفضيلات وأيقونات PWA والـ SW |
+| **Stage 11** | Multiplayer Web Client | ✅ مكتمل | 41/41 tests passed (100%) | عميل السوكت وشاشة اللوبي ومؤقت الـ 30ث الدائري وشريط الأحداث والماتش العشوائي ⚡ |
+| **Stage 12** | Egyptian Audio & PWA Polish | ✅ مكتمل | 41/41 tests passed (100%) | محرك الصوت التوليدي والاهتزاز وحفظ التفضيلات وأيقونات PWA والـ SW |
 | **Stage 13** | E2E Suite & Release Gate | ⬜ جاهز للبدء | لم تُشغّل بعد | اختبارات Playwright وحزم الإنتاج |
 
 ---
@@ -76,7 +76,7 @@
 ## 🔍 نتائج التحقق الفعلية (Verification Results)
 | الأمر المنفذ | النتيجة الفعلية | الملاحظات |
 |---|---|---|
-| `npm run test` (Turborepo) | ✅ نجح (157/157 tests) | 17 shared + 49 game-engine + 20 ui + 40 web + 31 server بنسبة 100% |
+| `npm run test` (Turborepo) | ✅ نجح (161/161 tests) | 17 shared + 49 game-engine + 20 ui + 41 web + 34 server بنسبة 100% |
 | `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تجميع الكود المصدري لجميع الحزم بنجاح تام |
 | `npm run typecheck` | ✅ نجح (8/8 tasks) | اجتياز فحص TypeScript الصارم لجميع الحزم بنجاح |
 

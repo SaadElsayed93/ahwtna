@@ -99,6 +99,54 @@ export class RoomManager {
     return undefined;
   }
 
+  /**
+   * البحث عن غرفة مفتوحة عشوائية في طور معين بحاجة للاعبين
+   */
+  public findAvailableRoom(mode: GameMode): GameRoom | undefined {
+    for (const room of this.rooms.values()) {
+      if (
+        room.status === 'LOBBY' &&
+        room.mode === mode &&
+        room.getPlayers().length < room.getMaxPlayers() &&
+        room.getFirstAvailableSeat() !== undefined
+      ) {
+        return room;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * الدخول السريع / التوفيق العشوائي الأونلاين:
+   * يبحث عن غرفة مفتوحة شاغرة في نفس النمط، وإذا لم يجد، ينشئ غرفة جديدة ويكون هذا اللاعب مضيفها
+   */
+  public quickMatch(
+    playerId: string,
+    playerName: string,
+    mode: GameMode,
+    autoReady: boolean = true
+  ): { room: GameRoom; player: RoomPlayer; isNewRoom: boolean; roundStarted: boolean } {
+    const available = this.findAvailableRoom(mode);
+    if (available) {
+      const player = available.joinPlayer(playerId, playerName);
+      let roundStarted = false;
+      if (autoReady) {
+        const readyRes = available.setReady(playerId, true);
+        roundStarted = readyRes.roundStarted;
+      }
+      return { room: available, player, isNewRoom: false, roundStarted };
+    }
+
+    const room = this.createRoom(playerId, playerName, mode);
+    let roundStarted = false;
+    if (autoReady) {
+      const readyRes = room.setReady(playerId, true);
+      roundStarted = readyRes.roundStarted;
+    }
+    const player = room.getPlayerById(playerId)!;
+    return { room, player, isNewRoom: true, roundStarted };
+  }
+
   public getAllActiveRooms(): readonly GameRoom[] {
     return Array.from(this.rooms.values()).filter((r) => r.status !== 'ABANDONED');
   }

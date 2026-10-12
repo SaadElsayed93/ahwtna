@@ -39,9 +39,16 @@ export const ReconnectRoomSchema = z.object({
   playerId: z.string().trim().min(1, 'معرف اللاعب مطلوب'),
 });
 
+export const QuickMatchSchema = z.object({
+  playerName: z.string().trim().min(1, 'اسم اللاعب مطلوب').max(30, 'اسم اللاعب لا يتجاوز 30 حرفاً'),
+  mode: GameModeSchema.default('INDIVIDUAL_2P'),
+  autoReady: z.boolean().default(true),
+});
+
 export type ValidatedCreateRoom = z.infer<typeof CreateRoomSchema>;
 export type ValidatedJoinRoom = z.infer<typeof JoinRoomSchema>;
 export type ValidatedChooseSeat = z.infer<typeof ChooseSeatSchema>;
 export type ValidatedToggleReady = z.infer<typeof ToggleReadySchema>;
 export type ValidatedLeaveRoom = z.infer<typeof LeaveRoomSchema>;
 export type ValidatedReconnectRoom = z.infer<typeof ReconnectRoomSchema>;
+export type ValidatedQuickMatch = z.infer<typeof QuickMatchSchema>;

@@ -12,6 +12,7 @@ import {
   ToggleReadySchema,
   LeaveRoomSchema,
   ReconnectRoomSchema,
+  QuickMatchSchema,
 } from '@ahwtna/shared';
 import { RoomManager } from './room/room-manager.js';
 import type { GameRoom } from './room/game-room.js';
@@ -83,6 +84,34 @@ export class AhwtnaServer {
       return reply.status(201).send({
         roomId: room.roomId,
         room: room.getPublicState(),
+      });
+    });
+
+    // التوفيق العشوائي السريع عبر الـ REST API
+    this.fastify.post('/api/matchmaking/quick', async (request, reply) => {
+      const parsed = QuickMatchSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'INVALID_INPUT',
+          message: parsed.error.issues[0]?.message ?? 'بيانات غير صالحة',
+        });
+      }
+
+      const { playerName, mode, autoReady } = parsed.data;
+      const playerId = `rest_player_${Math.random().toString(36).substring(2, 9)}`;
+      const { room, player, isNewRoom, roundStarted } = this.roomManager.quickMatch(
+        playerId,
+        playerName,
+        mode,
+        autoReady
+      );
+
+      return reply.send({
+        roomId: room.roomId,
+        room: room.getPublicState(),
+        player,
+        isNewRoom,
+        roundStarted,
       });
     });
 
@@ -160,7 +189,49 @@ export class AhwtnaServer {
         }
       });
 
-      // 3. اختيار وتغيير المقعد
+      // 3. التوفيق العشوائي السريع (Quick Random Matchmaking)
+      socket.on('room:quick_match', (payload, callback) => {
+        try {
+          const parsed = QuickMatchSchema.safeParse(payload);
+          if (!parsed.success) {
+            callback?.({ error: 'INVALID_INPUT', message: parsed.error.issues[0]?.message });
+            return;
+          }
+
+          const { playerName, mode, autoReady } = parsed.data;
+          const { room, player, isNewRoom, roundStarted } = this.roomManager.quickMatch(
+            socket.id,
+            playerName,
+            mode,
+            autoReady
+          );
+
+          socket.join(`room:${room.roomId}`);
+          this.broadcastRoomUpdate(room);
+
+          if (roundStarted) {
+            this.broadcastGameViews(room);
+            this.startTurnTimerForRoom(room);
+            this.io.to(`room:${room.roomId}`).emit('game:started', {
+              roomId: room.roomId,
+              roundNumber: room.currentRoundNumber,
+            });
+          }
+
+          callback?.({
+            success: true,
+            roomId: room.roomId,
+            room: room.getPublicState(),
+            player,
+            isNewRoom,
+            roundStarted,
+          });
+        } catch (err: unknown) {
+          this.handleSocketError(err, callback);
+        }
+      });
+
+      // 4. اختيار وتغيير المقعد
       socket.on('room:choose_seat', (payload, callback) => {
         try {
           const parsed = ChooseSeatSchema.safeParse(payload);

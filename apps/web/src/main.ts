@@ -183,6 +183,20 @@ function renderHomeView(app: HTMLElement) {
         alert(err instanceof Error ? err.message : String(err));
       }
     },
+    onQuickMatchOnline: async (mode) => {
+      try {
+        gameModeType = 'ONLINE';
+        const res = await onlineClient.quickMatch(homeState.playerName, mode);
+        if (res.roundStarted) {
+          currentScreen = 'DOMINO_TABLE';
+        } else {
+          currentScreen = 'LOBBY';
+        }
+        render();
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : String(err));
+      }
+    },
   }, renderAudioControlsHtml());
 
   // ربط أزرار الصوت والاهتزاز
@@ -244,6 +258,37 @@ function renderHomeView(app: HTMLElement) {
     }
     const btn = document.getElementById('btn-copy-room-code');
     if (btn) btn.innerText = 'تم نسخ الكود بنجاح! ✓';
+  });
+
+  // أزرار الماتش الأونلاين العشوائي السريع (Quick Match)
+  document.getElementById('btn-quick-match-2p')?.addEventListener('click', async () => {
+    try {
+      gameModeType = 'ONLINE';
+      const res = await onlineClient.quickMatch(homeState.playerName, 'INDIVIDUAL_2P');
+      if (res.roundStarted) {
+        currentScreen = 'DOMINO_TABLE';
+      } else {
+        currentScreen = 'LOBBY';
+      }
+      render();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  });
+
+  document.getElementById('btn-quick-match-4p')?.addEventListener('click', async () => {
+    try {
+      gameModeType = 'ONLINE';
+      const res = await onlineClient.quickMatch(homeState.playerName, 'TEAM_4P');
+      if (res.roundStarted) {
+        currentScreen = 'DOMINO_TABLE';
+      } else {
+        currentScreen = 'LOBBY';
+      }
+      render();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
   });
 
   document.getElementById('btn-start-offline-2p')?.addEventListener('click', () => {

@@ -145,4 +145,51 @@ describe('OnlineGameClient (عميل اللعبة الأونلاين التفا�
     expect(soundSpy).toHaveBeenCalledWith('win');
     expect(client.matchFeed[0]!.text).toContain('انتهى الماتش وبلغ الخاسر حد الـ 101');
   });
+
+  it('sends room:quick_match and handles successful matchmaking response', async () => {
+    const client = new OnlineGameClient({ autoConnect: false });
+
+    // Mock socket.emit
+    const mockRoom = {
+      roomId: 'AHW-999',
+      mode: 'INDIVIDUAL_2P' as const,
+      hostId: 'socket-1',
+      status: 'LOBBY' as const,
+      players: [
+        {
+          id: 'socket-1',
+          displayName: 'المعلم صبحي',
+          seat: 0 as const,
+          isHost: true,
+          isReady: true,
+          isConnected: true,
+        },
+      ],
+      stateVersion: 1,
+      currentRoundNumber: 1,
+      matchScore: { seat0: 0, seat1: 0 },
+    };
+
+    client.socket = {
+      emit: vi.fn((event, payload, cb) => {
+        if (event === 'room:quick_match') {
+          cb({
+            success: true,
+            roomId: 'AHW-999',
+            room: mockRoom,
+            player: mockRoom.players[0],
+            roundStarted: false,
+          });
+        }
+      }),
+    } as unknown as typeof client.socket;
+
+    const res = await client.quickMatch('المعلم صبحي', 'INDIVIDUAL_2P');
+
+    expect(res.roomId).toBe('AHW-999');
+    expect(res.roundStarted).toBe(false);
+    expect(client.currentRoom?.roomId).toBe('AHW-999');
+    expect(client.myPlayer?.displayName).toBe('المعلم صبحي');
+    expect(client.matchFeed[0]!.text).toContain('انضممت لماتش أونلاين عشوائي');
+  });
 });

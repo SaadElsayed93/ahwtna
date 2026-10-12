@@ -154,4 +154,50 @@ describe('RoomManager & Seating (TEST-9.1, TEST-9.2, TEST-9.3)', () => {
       expect(manager.getRoom(roomId)).toBeUndefined();
     });
   });
+
+  describe('TEST-9.6: Quick Random Matchmaking (التوفيق العشوائي السريع)', () => {
+    it('creates a new room when no available room exists in the requested mode', () => {
+      const result = manager.quickMatch('p1', 'المعلم صبحي', 'INDIVIDUAL_2P', true);
+
+      expect(result.isNewRoom).toBe(true);
+      expect(result.roundStarted).toBe(false);
+      expect(result.room.roomId).toHaveLength(6);
+      expect(result.room.getPlayers()).toHaveLength(1);
+      expect(result.player.displayName).toBe('المعلم صبحي');
+      expect(result.player.isReady).toBe(true);
+    });
+
+    it('joins an existing waiting room and starts the round when all players are ready', () => {
+      const first = manager.quickMatch('p1', 'المعلم صبحي', 'INDIVIDUAL_2P', true);
+      expect(first.isNewRoom).toBe(true);
+      expect(first.roundStarted).toBe(false);
+
+      // Player 2 searches for random match in 2P mode
+      const second = manager.quickMatch('p2', 'عم شكشك', 'INDIVIDUAL_2P', true);
+
+      expect(second.isNewRoom).toBe(false);
+      expect(second.room.roomId).toBe(first.room.roomId);
+      expect(second.room.getPlayers()).toHaveLength(2);
+      expect(second.player.seat).toBe(1);
+      expect(second.roundStarted).toBe(true);
+      expect(second.room.status).toBe('IN_ROUND');
+    });
+
+    it('matches 4 players in TEAM_4P mode across teams correctly', () => {
+      const p1 = manager.quickMatch('p1', 'لاعب 1', 'TEAM_4P', true);
+      const p2 = manager.quickMatch('p2', 'لاعب 2', 'TEAM_4P', true);
+      const p3 = manager.quickMatch('p3', 'لاعب 3', 'TEAM_4P', true);
+      const p4 = manager.quickMatch('p4', 'لاعب 4', 'TEAM_4P', true);
+
+      expect(p1.isNewRoom).toBe(true);
+      expect(p2.isNewRoom).toBe(false);
+      expect(p3.isNewRoom).toBe(false);
+      expect(p4.isNewRoom).toBe(false);
+
+      expect(p4.room.roomId).toBe(p1.room.roomId);
+      expect(p4.room.getPlayers()).toHaveLength(4);
+      expect(p4.roundStarted).toBe(true);
+      expect(p4.room.status).toBe('IN_ROUND');
+    });
+  });
 });
