@@ -262,8 +262,8 @@ function render() {
     });
   }
 
-  // حساب توزيع سلسلة الدومينو الملتفة (Snake Layout)
-  const snakeLayout = computeSnakeLayout(controller.board, 6);
+  // حساب توزيع سلسلة الدومينو المتصلة ببعضها (Connected Snake Layout)
+  const snakeLayout = computeSnakeLayout(controller.board, 5, 34);
   let chainContentHtml = '';
 
   if (isBoardEmpty(controller.board)) {
@@ -275,41 +275,30 @@ function render() {
       </div>
     `;
   } else {
-    // رسم السلسلة مع إبراز الأطراف المفتوحة والالتفاف الذكي
-    const rowsMap = new Map<number, typeof snakeLayout.items>();
-    for (const item of snakeLayout.items) {
-      if (!rowsMap.has(item.row)) {
-        rowsMap.set(item.row, []);
-      }
-      rowsMap.get(item.row)!.push(item);
-    }
-
+    // رسم السلسلة المتصلة هندسياً بالكامل حيث كل بلاطة تلمس البلاطة التالية وتلف معها عند الحواف
     chainContentHtml = `
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 100%; overflow-x: auto; padding: 12px 6px;">
-        ${Array.from(rowsMap.entries()).map(([rowIndex, rowItems]) => {
-          const isLtr = rowIndex % 2 === 0;
-          return `
-            <div style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-direction: ${isLtr ? 'row' : 'row-reverse'}; flex-wrap: nowrap;">
-              ${rowItems.map((item) => {
-                const isSelectedEnd = !!(controller.selectedTile && (item.isFirst || item.isLast));
-                const tileMarkup = renderTileSvg({
-                  left: item.displayValues[0],
-                  right: item.displayValues[1],
-                  orientation: item.orientation,
-                  size: 'md',
-                  state: isSelectedEnd ? 'playable' : 'idle',
-                  className: item.isFirst || item.isLast ? 'ahwa-tile-slam-animate' : '',
-                });
+      <div style="width: 100%; height: 100%; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 20px 10px;">
+        <div class="ahwa-board-canvas" style="position: relative; width: ${Math.max(snakeLayout.totalWidth, 280)}px; height: ${Math.max(snakeLayout.totalHeight, 160)}px; min-width: ${Math.max(snakeLayout.totalWidth, 280)}px; min-height: ${Math.max(snakeLayout.totalHeight, 160)}px; transition: all 0.3s ease;">
+          ${snakeLayout.tiles.map((item) => {
+            const isSelectedEnd = !!(controller.selectedTile && (item.isFirst || item.isLast));
+            const tileMarkup = renderTileSvg({
+              left: item.displayValues[0],
+              right: item.displayValues[1],
+              orientation: item.orientation,
+              size: 'md',
+              state: isSelectedEnd ? 'playable' : 'idle',
+              className: item.isFirst || item.isLast ? 'ahwa-tile-slam-animate' : '',
+            });
 
-                return `
-                  <div style="display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease; ${isSelectedEnd ? 'filter: drop-shadow(0 0 8px #D4AF37);' : ''}">
-                    ${tileMarkup}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `;
-        }).join('')}
+            return `
+              <div style="position: absolute; left: ${item.x}px; top: ${item.y}px; width: ${item.width}px; height: ${item.height}px;
+                          display: flex; align-items: center; justify-content: center;
+                          transition: all 0.25s ease; ${isSelectedEnd ? 'filter: drop-shadow(0 0 12px #D4AF37); z-index: 10;' : ''}">
+                ${tileMarkup}
+              </div>
+            `;
+          }).join('')}
+        </div>
       </div>
     `;
   }
