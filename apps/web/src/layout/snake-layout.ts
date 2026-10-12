@@ -28,14 +28,11 @@ export interface ConnectedBoardLayout {
 }
 
 /**
- * حساب تموضع سلسلة الدومينو المتصلة بمسافات آمنة تمنع أي تداخل نهائياً (Collision-Free Domino Chain)
- * 1. قطع الدبل (مثل 5-5) توضع متعامدة تماماً (بالعرض على الرقم) متمركزة في منتصف المسار
- * 2. المسارات الأفقية تفصل بينها مسافة رأسية واسعة (120px) تمنع أي تداخل بين الأسطر
- * 3. الانعطافات تستخدم وصلات رأسية مريحة تربط المسار العلوي بالمسار السفلي بسلاسة
- *
- * @param board حالة طاولة اللعب
- * @param tilesPerLeg عدد البلاطات في كل ضلع أفقي قبل الالتفاف (افتراضي: 4)
- * @param tileSize حجم البلاطة ('sm' أو 'md')
+ * خوارزمية تموضع سلسلة الدومينو بنظام الشبكة الهندسية المنفصلة (Discrete Non-Overlapping Grid)
+ * 1. تمنع التداخل نهائياً (0% Overlap) عبر حجز خلايا شبكية مستقلة لكل بلاطة
+ * 2. وضع قطع الدبل (مثل 5-5) متعامدة تماماً (بالعرض على الرقم) في منتصف المسار
+ * 3. مسافة أمان رأسية واسعة بين كل مسار والتالي (4 خلايا شبكية = 128px) لمنع أي تقاطع
+ * 4. وصلات الانعطاف تنزل ببلاطتين رأسيتين لربط المسارات بتباعد مريح
  */
 export function computeConnectedSnakeLayout(
   board: BoardState,
@@ -55,14 +52,11 @@ export function computeConnectedSnakeLayout(
     };
   }
 
-  // W: عرض/سُمك البلاطة، L: طول البلاطة
-  const W = tileSize === 'sm' ? 32 : 38;
-  const L = W * 2; // 64px في sm، أو 76px في md
-  const laneSpacing = L + W * 1.8; // مسافة رأسية كافية (120px) بين مراكز المسارات لمنع أي تداخل
-
+  // S: حجم نصف البلاطة (32px في الوضع الصغير)
+  const S = tileSize === 'sm' ? 32 : 40;
   const safeTilesPerLeg = Math.max(3, tilesPerLeg);
 
-  // استخراج تسلسل قيم الأطراف المتصلة (inPip و outPip)
+  // استخراج قيم الأطراف المتصلة (inPip و outPip) لكل بلاطة
   const connectingPips: { inPip: PipValue; outPip: PipValue }[] = [];
   let prevOut: PipValue = board.leftValue!;
 
@@ -74,14 +68,30 @@ export function computeConnectedSnakeLayout(
     prevOut = outPip;
   }
 
-  const resultTiles: ConnectedSnakeTile[] = [];
+  interface PlacedTile {
+    nodeIndex: number;
+    tile: Tile;
+    isDouble: boolean;
+    orientation: 'horizontal' | 'vertical';
+    displayValues: [PipValue, PipValue];
+    pixelX: number;
+    pixelY: number;
+    pixelW: number;
+    pixelH: number;
+    isCornerTurn: boolean;
+    isFirst: boolean;
+    isLast: boolean;
+  }
 
-  let laneIndex = 0;
-  let dir: 1 | -1 = 1; // 1: لليمين، -1: لليسار
-  let curX = 40;
+  const placedTiles: PlacedTile[] = [];
+
+  // تتبع الموضع على الشبكة (Grid Coordinates)
+  let row = 0; // سطر الشبكة
+  let col = 0; // عمود الشبكة
+  let dir: 1 | -1 = 1; // 1: يمين، -1: يسار
+  let legCount = 0;
   let inTurn = false;
-  let turnTilesRemaining = 0;
-  let legTileCount = 0;
+  let turnStep = 0; // 1 أو 2 في الانعطاف
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]!;
@@ -90,160 +100,255 @@ export function computeConnectedSnakeLayout(
     const isFirst = i === 0;
     const isLast = i === nodes.length - 1;
 
-    const laneY = 40 + laneIndex * laneSpacing;
-
     if (inTurn) {
-      // بلاطة داخل الانعطاف الرأسي لأسفل (Vertical Turn Connector)
-      const orientation: 'horizontal' | 'vertical' = 'vertical';
-      const width = W;
-      const height = L;
-      const x = dir === 1 ? curX - width : curX;
-      // نضع البلاطة الرأسية في المسافة بين المسارين
-      const topY = laneY - laneSpacing + (turnTilesRemaining === 2 ? W : W + L - 8);
-      const y = topY;
-      const displayValues: [PipValue, PipValue] = [inPip, outPip];
-
-      resultTiles.push({
-        nodeIndex: i,
-        tile: node.tile,
-        isDouble: double,
-        orientation,
-        displayValues,
-        x,
-        y,
-        width,
-        height,
-        isCornerTurn: true,
-        isFirst,
-        isLast,
-      });
-
-      turnTilesRemaining--;
-      if (turnTilesRemaining <= 0) {
-        inTurn = false;
-        // عكس الاتجاه وبدء المسار الجديد
-        dir = (dir === 1 ? -1 : 1) as 1 | -1;
-        legTileCount = 0;
-      }
-    } else {
-      // فحص هل حان وقت الانعطاف لأسفل
-      const shouldStartTurn = legTileCount >= safeTilesPerLeg && i < nodes.length - 1;
-
-      if (shouldStartTurn) {
-        inTurn = true;
-        turnTilesRemaining = 2; // نستخدم بلاطتين لتغطية الهبوط الرأسي الواسع
-        laneIndex++;
-
-        // أول بلاطة في الانعطاف
-        const orientation: 'horizontal' | 'vertical' = 'vertical';
-        const width = W;
-        const height = L;
-        const x = dir === 1 ? curX - width : curX;
-        const topY = laneY + W * 0.5;
-        const y = topY;
+      // بلاطات الانعطاف الرأسي لأسفل (Vertical Turn Connector)
+      if (turnStep === 1) {
+        // البلاطة الأولى في الانعطاف: رأسية تحتل [col, row+1] و [col, row+2]
+        const pixelX = col * S;
+        const pixelY = (row + 1) * S;
+        const pixelW = S;
+        const pixelH = 2 * S;
         const displayValues: [PipValue, PipValue] = [inPip, outPip];
 
-        resultTiles.push({
+        placedTiles.push({
           nodeIndex: i,
           tile: node.tile,
           isDouble: double,
-          orientation,
+          orientation: 'vertical',
           displayValues,
-          x,
-          y,
-          width,
-          height,
+          pixelX,
+          pixelY,
+          pixelW,
+          pixelH,
           isCornerTurn: true,
           isFirst,
           isLast,
         });
 
-        turnTilesRemaining--;
+        turnStep = 2;
       } else {
-        // بلاطة داخل المسار الأفقي
-        if (double) {
-          // في الدومينو الأصيل: الدبل يُوضع متعامداً (بالعرض على الرقم المطلوب)
-          // متمركزاً تماماً في منتصف المسار الأفقي
-          const orientation: 'horizontal' | 'vertical' = 'vertical';
-          const width = W;
-          const height = L;
-          const x = dir === 1 ? curX : curX - width;
-          const y = laneY - L / 2; // متمركز تماماً فوق وتحت خط المنتصف
-          const displayValues: [PipValue, PipValue] = [inPip, outPip];
+        // البلاطة الثانية في الانعطاف: رأسية تحتل [col, row+3] و [col, row+4]
+        const pixelX = col * S;
+        const pixelY = (row + 3) * S;
+        const pixelW = S;
+        const pixelH = 2 * S;
+        const displayValues: [PipValue, PipValue] = [inPip, outPip];
 
-          resultTiles.push({
-            nodeIndex: i,
-            tile: node.tile,
-            isDouble: true,
-            orientation,
-            displayValues,
-            x,
-            y,
-            width,
-            height,
-            isCornerTurn: false,
-            isFirst,
-            isLast,
-          });
+        placedTiles.push({
+          nodeIndex: i,
+          tile: node.tile,
+          isDouble: double,
+          orientation: 'vertical',
+          displayValues,
+          pixelX,
+          pixelY,
+          pixelW,
+          pixelH,
+          isCornerTurn: true,
+          isFirst,
+          isLast,
+        });
 
-          curX += dir * width;
+        // انتهى الانعطاف: ننتقل للسطر الجديد row + 4
+        row = row + 4;
+        // نعكس الاتجاه
+        if (dir === 1) {
+          // كنا نتجه لليمين، الآن سنتجه لليسار
+          // البلاطة الأفقية التالية تبدأ على يسار بلاطة الانعطاف (col - 1)
+          col = col - 1;
+          dir = -1;
         } else {
-          // بلاطة أفقية عادية
-          const orientation: 'horizontal' | 'vertical' = 'horizontal';
-          const width = L;
-          const height = W;
-          const x = dir === 1 ? curX : curX - width;
-          const y = laneY - W / 2; // متمركزة على خط المنتصف
-          const displayValues: [PipValue, PipValue] = dir === 1
-            ? [inPip, outPip]
-            : [outPip, inPip];
-
-          resultTiles.push({
-            nodeIndex: i,
-            tile: node.tile,
-            isDouble: false,
-            orientation,
-            displayValues,
-            x,
-            y,
-            width,
-            height,
-            isCornerTurn: false,
-            isFirst,
-            isLast,
-          });
-
-          curX += dir * width;
+          // كنا نتجه لليسار، الآن سنتجه لليمين
+          // البلاطة الأفقية التالية تبدأ على يمين بلاطة الانعطاف (col + 1)
+          col = col + 1;
+          dir = 1;
         }
 
-        legTileCount++;
+        inTurn = false;
+        turnStep = 0;
+        legCount = 0;
+      }
+    } else {
+      // فحص هل حان وقت الانعطاف
+      const shouldTurn = legCount >= safeTilesPerLeg && i < nodes.length - 1;
+
+      if (shouldTurn) {
+        inTurn = true;
+        turnStep = 1;
+
+        // عمود الانعطاف هو نفس عمود آخر بلاطة أفقية
+        const turnCol = dir === 1 ? col - 1 : col;
+        col = turnCol;
+
+        // أول بلاطة في الانعطاف: رأسية تحتل [col, row+1] و [col, row+2]
+        const pixelX = col * S;
+        const pixelY = (row + 1) * S;
+        const pixelW = S;
+        const pixelH = 2 * S;
+        const displayValues: [PipValue, PipValue] = [inPip, outPip];
+
+        placedTiles.push({
+          nodeIndex: i,
+          tile: node.tile,
+          isDouble: double,
+          orientation: 'vertical',
+          displayValues,
+          pixelX,
+          pixelY,
+          pixelW,
+          pixelH,
+          isCornerTurn: true,
+          isFirst,
+          isLast,
+        });
+
+        turnStep = 2;
+      } else {
+        // بلاطة داخل المسار الأفقي
+        if (dir === 1) {
+          // حركة لليمين
+          if (double) {
+            // دبل بالعرض (Vertical) في منتصف السطر الأفقي تماماً
+            const pixelX = col * S;
+            const pixelY = row * S - Math.floor(S / 2); // متمركزة رأسياً
+            const pixelW = S;
+            const pixelH = 2 * S;
+            const displayValues: [PipValue, PipValue] = [inPip, outPip];
+
+            placedTiles.push({
+              nodeIndex: i,
+              tile: node.tile,
+              isDouble: true,
+              orientation: 'vertical',
+              displayValues,
+              pixelX,
+              pixelY,
+              pixelW,
+              pixelH,
+              isCornerTurn: false,
+              isFirst,
+              isLast,
+            });
+
+            col += 1;
+          } else {
+            // بلاطة أفقية عادية
+            const pixelX = col * S;
+            const pixelY = row * S;
+            const pixelW = 2 * S;
+            const pixelH = S;
+            const displayValues: [PipValue, PipValue] = [inPip, outPip];
+
+            placedTiles.push({
+              nodeIndex: i,
+              tile: node.tile,
+              isDouble: false,
+              orientation: 'horizontal',
+              displayValues,
+              pixelX,
+              pixelY,
+              pixelW,
+              pixelH,
+              isCornerTurn: false,
+              isFirst,
+              isLast,
+            });
+
+            col += 2;
+          }
+        } else {
+          // حركة لليسار
+          if (double) {
+            // دبل بالعرض (Vertical)
+            const pixelX = col * S;
+            const pixelY = row * S - Math.floor(S / 2); // متمركزة رأسياً
+            const pixelW = S;
+            const pixelH = 2 * S;
+            const displayValues: [PipValue, PipValue] = [inPip, outPip];
+
+            placedTiles.push({
+              nodeIndex: i,
+              tile: node.tile,
+              isDouble: true,
+              orientation: 'vertical',
+              displayValues,
+              pixelX,
+              pixelY,
+              pixelW,
+              pixelH,
+              isCornerTurn: false,
+              isFirst,
+              isLast,
+            });
+
+            col -= 1;
+          } else {
+            // بلاطة أفقية عادية متجهة لليسار: تحتل [col-1, col]
+            const pixelX = (col - 1) * S;
+            const pixelY = row * S;
+            const pixelW = 2 * S;
+            const pixelH = S;
+            // نصفها الأيمن يلامس inPip، ونصفها الأيسر يخرج منه outPip
+            const displayValues: [PipValue, PipValue] = [outPip, inPip];
+
+            placedTiles.push({
+              nodeIndex: i,
+              tile: node.tile,
+              isDouble: false,
+              orientation: 'horizontal',
+              displayValues,
+              pixelX,
+              pixelY,
+              pixelW,
+              pixelH,
+              isCornerTurn: false,
+              isFirst,
+              isLast,
+            });
+
+            col -= 2;
+          }
+        }
+
+        legCount++;
       }
     }
   }
 
-  // حساب الصندوق المحيط لضبط المحاذاة الموجبة وتوسيط السلسلة
+  // حساب أبعاد الصندوق المحيط لتوسيط السلسلة بدقة
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
 
-  for (const t of resultTiles) {
-    minX = Math.min(minX, t.x);
-    maxX = Math.max(maxX, t.x + t.width);
-    minY = Math.min(minY, t.y);
-    maxY = Math.max(maxY, t.y + t.height);
+  for (const t of placedTiles) {
+    minX = Math.min(minX, t.pixelX);
+    maxX = Math.max(maxX, t.pixelX + t.pixelW);
+    minY = Math.min(minY, t.pixelY);
+    maxY = Math.max(maxY, t.pixelY + t.pixelH);
   }
 
-  const offsetX = minX < 20 ? 30 - minX : 20;
-  const offsetY = minY < 20 ? 30 - minY : 20;
+  const padding = 24;
+  const offsetX = minX < padding ? padding - minX : padding;
+  const offsetY = minY < padding ? padding - minY : padding;
 
-  for (const t of resultTiles) {
-    t.x += offsetX;
-    t.y += offsetY;
-  }
+  const resultTiles: ConnectedSnakeTile[] = placedTiles.map((t) => ({
+    nodeIndex: t.nodeIndex,
+    tile: t.tile,
+    isDouble: t.isDouble,
+    orientation: t.orientation,
+    displayValues: t.displayValues,
+    x: t.pixelX + offsetX,
+    y: t.pixelY + offsetY,
+    width: t.pixelW,
+    height: t.pixelH,
+    isCornerTurn: t.isCornerTurn,
+    isFirst: t.isFirst,
+    isLast: t.isLast,
+  }));
 
-  const totalWidth = maxX - minX + 60;
-  const totalHeight = maxY - minY + 60;
+  const totalWidth = maxX - minX + padding * 2;
+  const totalHeight = maxY - minY + padding * 2;
 
   // تحديد مواقع أهداف الأطراف المفتوحة
   const firstTile = resultTiles[0];
