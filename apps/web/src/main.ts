@@ -263,7 +263,7 @@ function render() {
   }
 
   // حساب توزيع سلسلة الدومينو المتصلة ببعضها (Connected Snake Layout)
-  const snakeLayout = computeSnakeLayout(controller.board, 5, 34);
+  const snakeLayout = computeSnakeLayout(controller.board, 4, 'sm');
   let chainContentHtml = '';
 
   if (isBoardEmpty(controller.board)) {
@@ -285,7 +285,7 @@ function render() {
               left: item.displayValues[0],
               right: item.displayValues[1],
               orientation: item.orientation,
-              size: 'md',
+              size: 'sm',
               state: isSelectedEnd ? 'playable' : 'idle',
               className: item.isFirst || item.isLast ? 'ahwa-tile-slam-animate' : '',
             });
