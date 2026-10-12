@@ -13,6 +13,9 @@ export type GameErrorCode =
   | 'STALE_STATE'
   | 'ROOM_FULL'
   | 'ROOM_NOT_FOUND'
+  | 'SEAT_TAKEN'
+  | 'PLAYER_NOT_FOUND'
+  | 'ROUND_IN_PROGRESS'
   | 'UNAUTHORIZED_ACTION';
 
 export class GameError extends Error {
