@@ -152,6 +152,7 @@ function playSoundByEvent(sound: SoundEffect) {
 // إدارة شاشات التطبيق
 type AppScreen = 'HOME' | 'DOMINO_TABLE';
 let currentScreen: AppScreen = 'HOME';
+let isScoreBoardOpen = false;
 
 const homeState: HomeScreenState = {
   playerName: typeof localStorage !== 'undefined' ? (localStorage.getItem('ahwtna_player_name') || 'صبحي') : 'صبحي',
@@ -339,7 +340,7 @@ function renderDominoTableView(app: HTMLElement) {
   if (controller.mode === 'INDIVIDUAL_2P') {
     const opp = controller.getPlayer(1);
     playersLayoutHtml = `
-      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <div style="display: flex; align-items: center; width: 100%;">
         ${renderTurnIndicator({
           playerName: opp.name,
           avatarChar: opp.avatarChar,
@@ -347,9 +348,6 @@ function renderDominoTableView(app: HTMLElement) {
           tileCount: controller.hands[1].length,
           timerSeconds: controller.currentTurn === 1 ? 25 : undefined,
         })}
-        <div style="font-size: 13px; color: ${AHWA_COLORS.paleGold}; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(212,175,55,0.3);">
-          🎲 قطع المخزون المتبقية: <strong>${controller.boneyard.length}</strong>
-        </div>
       </div>
     `;
   } else {
@@ -416,6 +414,75 @@ function renderDominoTableView(app: HTMLElement) {
       ],
       matchLimit: 101,
     });
+  }
+
+  // كومة ورق المخزون المقلوب على ضهره (يسار الطاولة)
+  let boneyardPileHtml = '';
+  if (controller.mode === 'INDIVIDUAL_2P') {
+    const boneyardCount = controller.boneyard.length;
+    if (boneyardCount > 0) {
+      const stackDepth = Math.min(Math.max(1, Math.ceil(boneyardCount / 3)), 5);
+      let shadowLayers = '';
+      for (let s = 1; s < stackDepth; s++) {
+        shadowLayers += `
+          <div style="position: absolute; left: ${s * 2}px; top: ${s * 2}px; width: 32px; height: 64px;
+                      border-radius: 6px; background: ${AHWA_COLORS.walnutWood}; border: 1px solid rgba(212,175,55,0.4);
+                      box-shadow: 1px 1px 3px rgba(0,0,0,0.5); pointer-events: none;"></div>
+        `;
+      }
+
+      const faceDownTileSvg = renderTileSvg({
+        left: 0,
+        right: 0,
+        orientation: 'vertical',
+        size: 'sm',
+        faceDown: true,
+      });
+
+      boneyardPileHtml = `
+        <div id="boneyard-pile-container"
+             title="${canDraw ? 'اضغط هنا لسحب بلاطة من المخزون' : `المخزون (${boneyardCount})`}"
+             style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 35;
+                    display: flex; flex-direction: column; align-items: center; gap: 6px;
+                    background: rgba(0,0,0,0.55); padding: 8px 10px; border-radius: 14px;
+                    border: 1.5px solid ${canDraw ? AHWA_COLORS.warmGold : 'rgba(212,175,55,0.3)'};
+                    box-shadow: ${canDraw ? '0 0 18px rgba(212,175,55,0.7)' : '0 6px 16px rgba(0,0,0,0.5)'};
+                    cursor: ${canDraw ? 'pointer' : 'default'}; transition: all 0.2s ease;">
+          <span style="font-size: 11px; font-weight: 800; color: ${AHWA_COLORS.warmGold}; white-space: nowrap;">
+            🎲 المخزون: <strong style="font-size: 15px; color: #FFF;">${boneyardCount}</strong>
+          </span>
+
+          <div style="position: relative; width: 36px; height: 68px; margin: 4px 0;">
+            ${shadowLayers}
+            <div style="position: absolute; left: 0; top: 0; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.8));">
+              ${faceDownTileSvg}
+            </div>
+          </div>
+
+          ${canDraw ? `
+            <span style="font-size: 10px; font-weight: 800; color: #FFF; background: #2E7D32; padding: 2px 6px; border-radius: 4px; animation: ahwa-pulse 1.3s infinite ease-in-out; white-space: nowrap;">
+              اسحب 👆
+            </span>
+          ` : `
+            <span style="font-size: 10px; color: #aaa; white-space: nowrap;">
+              على ضهره
+            </span>
+          `}
+        </div>
+      `;
+    } else {
+      boneyardPileHtml = `
+        <div style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 35;
+                    display: flex; flex-direction: column; align-items: center; gap: 4px;
+                    background: rgba(0,0,0,0.35); padding: 8px 10px; border-radius: 14px;
+                    border: 1.5px dashed rgba(212,175,55,0.35);">
+          <span style="font-size: 10px; color: #aaa; font-weight: 700;">المخزون خلص</span>
+          <div style="width: 32px; height: 64px; border: 1.5px dashed #555; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #888;">
+            خالي
+          </div>
+        </div>
+      `;
+    }
   }
 
   // حساب توزيع سلسلة الدومينو المتصلة ببعضها (Connected Snake Layout)
@@ -637,24 +704,16 @@ function renderDominoTableView(app: HTMLElement) {
         <span style="color: ${AHWA_COLORS.creamPaper}; opacity: 0.8; font-size: 13px;">${DOMINO_VOCABULARY.tagline}</span>
       </div>
 
-      <!-- زر الرجوع للقهوة ومحول نمط اللعب -->
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <!-- زر الرجوع للقهوة وشارة نمط اللعب وزر ماتش جديد -->
+      <div style="display: flex; align-items: center; gap: 10px;">
         <button id="btn-back-to-home" style="background: rgba(0,0,0,0.5); color: ${AHWA_COLORS.warmGold};
                 border: 1.5px solid rgba(212,175,55,0.45); border-radius: 9px; padding: 6px 14px; font-weight: 800;
                 font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
           🏠 العودة للقهوة
         </button>
-        <div style="background: rgba(0,0,0,0.4); padding: 3px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid rgba(212,175,55,0.3);">
-          <button id="btn-mode-2p" style="background: ${controller.mode === 'INDIVIDUAL_2P' ? AHWA_COLORS.warmGold : 'transparent'};
-                                          color: ${controller.mode === 'INDIVIDUAL_2P' ? '#000' : AHWA_COLORS.creamPaper};
-                                          border: none; border-radius: 7px; padding: 6px 12px; font-weight: 700; font-size: 12px; cursor: pointer;">
-            فردي (2P)
-          </button>
-          <button id="btn-mode-4p" style="background: ${controller.mode === 'TEAM_4P' ? AHWA_COLORS.warmGold : 'transparent'};
-                                          color: ${controller.mode === 'TEAM_4P' ? '#000' : AHWA_COLORS.creamPaper};
-                                          border: none; border-radius: 7px; padding: 6px 12px; font-weight: 700; font-size: 12px; cursor: pointer;">
-            زوجي (4P)
-          </button>
+        <div style="background: rgba(0,0,0,0.5); color: ${AHWA_COLORS.paleGold}; border: 1.5px solid rgba(212,175,55,0.4);
+                    border-radius: 20px; padding: 5px 14px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 6px;">
+          <span>${controller.mode === 'INDIVIDUAL_2P' ? '🎲 فردي (2P)' : '👥 زوجي (4P)'}</span>
         </div>
         ${restartButtonHtml}
       </div>
@@ -663,15 +722,39 @@ function renderDominoTableView(app: HTMLElement) {
     <!-- منطقة اللعب الرئيسية -->
     <main style="flex: 1; display: flex; flex-direction: column; padding: 12px; max-width: 1320px; width: 100%; margin: 0 auto; gap: 12px;">
       
-      <!-- شريط معلومات اللاعبين ولوحة الحساب -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 300px;">
+      <!-- شريط معلومات اللاعبين وزر نوتة الحساب القابلة للفتح والغلق -->
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 260px;">
           ${playersLayoutHtml}
         </div>
-        <div style="min-width: 280px;">
-          ${scoreBoardHtml}
+        <div>
+          <button id="btn-toggle-scoreboard" style="display: flex; align-items: center; gap: 8px; background: rgba(13, 59, 46, 0.95);
+                         border: 1.5px solid ${AHWA_COLORS.warmGold}; border-radius: 14px; padding: 6px 14px; color: ${AHWA_COLORS.paleGold};
+                         cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.2s ease;">
+            <span style="font-size: 18px;">📝</span>
+            <span style="font-weight: 800; font-size: 13px;">نوتة الحساب (101)</span>
+            <span style="font-size: 11px; background: rgba(0,0,0,0.5); color: ${AHWA_COLORS.warmGold}; padding: 2px 8px; border-radius: 6px; font-weight: 800;">
+              ${controller.mode === 'INDIVIDUAL_2P'
+                ? `أنت: ${(controller.matchScore as MatchScore2P).seat0} | شكشك: ${(controller.matchScore as MatchScore2P).seat1}`
+                : `فريقك: ${(controller.matchScore as MatchScore4P).teamA} | الخصم: ${(controller.matchScore as MatchScore4P).teamB}`}
+            </span>
+            <span style="font-size: 12px; color: ${AHWA_COLORS.warmGold}; font-weight: 700;">${isScoreBoardOpen ? '▲ إغلاق' : '▼ فتح'}</span>
+          </button>
         </div>
       </div>
+
+      <!-- نوتة الحساب المنبثقة عند النقر -->
+      ${isScoreBoardOpen ? `
+        <div id="scoreboard-backdrop" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 999;
+                    display: flex; align-items: center; justify-content: center; padding: 16px;">
+          <div style="position: relative; max-width: 360px; width: 100%; animation: ahwa-tile-slam 0.2s ease;">
+            <button id="btn-close-scoreboard" style="position: absolute; top: -12px; left: -12px; background: #C62828; color: #FFF;
+                           border: 2px solid #FFF; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; cursor: pointer;
+                           font-weight: 900; z-index: 20; box-shadow: 0 4px 10px rgba(0,0,0,0.6);">✕</button>
+            ${scoreBoardHtml}
+          </div>
+        </div>
+      ` : ''}
 
       <!-- بانر حالة الدور الحالي -->
       <div style="background: rgba(0,0,0,0.4); border: 1.5px solid ${isUserTurn ? AHWA_COLORS.warmGold : 'rgba(255,255,255,0.15)'};
@@ -687,6 +770,9 @@ function renderDominoTableView(app: HTMLElement) {
                   position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; cursor: default;">
         
         ${tableOpenEndsHeaderHtml}
+
+        <!-- كومة ورق المخزون المقلوب على ضهره (يسار الطاولة) -->
+        ${boneyardPileHtml}
 
         <!-- حاوية السلسلة مع المربعات المنقطة على الطاولة مباشرة -->
         ${chainContentHtml}
@@ -724,17 +810,34 @@ function renderDominoTableView(app: HTMLElement) {
   `;
 
   // ربط الأحداث
-  document.getElementById('btn-mode-2p')?.addEventListener('click', () => {
-    if (controller.mode !== 'INDIVIDUAL_2P') controller.setGameMode('INDIVIDUAL_2P');
-  });
-
-  document.getElementById('btn-mode-4p')?.addEventListener('click', () => {
-    if (controller.mode !== 'TEAM_4P') controller.setGameMode('TEAM_4P');
-  });
-
   document.getElementById('btn-draw')?.addEventListener('click', () => controller.handlePlayerDraw());
   document.getElementById('btn-pass')?.addEventListener('click', () => controller.handlePlayerPass());
   document.getElementById('btn-restart')?.addEventListener('click', () => controller.resetMatch());
+
+  // نوتة الحساب القابلة للفتح والغلق
+  document.getElementById('btn-toggle-scoreboard')?.addEventListener('click', () => {
+    isScoreBoardOpen = !isScoreBoardOpen;
+    render();
+  });
+
+  document.getElementById('btn-close-scoreboard')?.addEventListener('click', () => {
+    isScoreBoardOpen = false;
+    render();
+  });
+
+  document.getElementById('scoreboard-backdrop')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === 'scoreboard-backdrop') {
+      isScoreBoardOpen = false;
+      render();
+    }
+  });
+
+  // النقر على كومة المخزون على شمال الطاولة للسحب المباشر
+  document.getElementById('boneyard-pile-container')?.addEventListener('click', () => {
+    if (canDraw) {
+      controller.handlePlayerDraw();
+    }
+  });
 
   // النقر على بلاطات اليد
   document.querySelectorAll('.user-hand-tile-wrapper').forEach((el) => {

@@ -3,7 +3,7 @@
 > **منصة ألعاب اجتماعية عربية بروح ودفء القهوة المصرية الأصيلة**  
 > أولى الألعاب التأسيسية: **دومينو 101 (Domino 101)**
 
-[![CI Status](https://img.shields.io/badge/Tests-98%2F98%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
+[![CI Status](https://img.shields.io/badge/Tests-103%2F103%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![Build](https://img.shields.io/badge/Build-Passing-0D3B2E.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict%20100%25-D4AF37.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-SaadElsayed93%2Fahwtna-blue.svg)](https://github.com/SaadElsayed93/ahwtna)
