@@ -56,7 +56,7 @@ export class OnlineGameClient {
     if (this.socket) return;
 
     this.socket = io(this.serverUrl, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,
@@ -223,10 +223,21 @@ export class OnlineGameClient {
   ): Promise<{ roomId: string; room: RoomPublicState; player: RoomPlayer }> {
     if (!this.socket) this.connect();
     return new Promise((resolve, reject) => {
+      let isSettled = false;
+      const timeout = setTimeout(() => {
+        if (!isSettled) {
+          isSettled = true;
+          reject(new Error('تعذر الاتصال بخادم القهوة أونلاين. تأكد من تشغيل خادم اللعبة على منفذ 3001'));
+        }
+      }, 6000);
+
       this.socket?.emit(
         'room:create',
         { hostName, mode },
         (res: { success?: boolean; roomId: string; room: RoomPublicState; player: RoomPlayer; error?: string; message?: string }) => {
+          if (isSettled) return;
+          isSettled = true;
+          clearTimeout(timeout);
           if (res.error) return reject(new Error(res.message || res.error));
           this.currentRoom = res.room;
           this.myPlayer = res.player;
@@ -245,10 +256,21 @@ export class OnlineGameClient {
   ): Promise<{ room: RoomPublicState; player: RoomPlayer }> {
     if (!this.socket) this.connect();
     return new Promise((resolve, reject) => {
+      let isSettled = false;
+      const timeout = setTimeout(() => {
+        if (!isSettled) {
+          isSettled = true;
+          reject(new Error('تعذر الاتصال بخادم القهوة أونلاين. تأكد من تشغيل خادم اللعبة على منفذ 3001'));
+        }
+      }, 6000);
+
       this.socket?.emit(
         'room:join',
         { roomId, playerName, preferredSeat },
         (res: { success?: boolean; room: RoomPublicState; player: RoomPlayer; error?: string; message?: string }) => {
+          if (isSettled) return;
+          isSettled = true;
+          clearTimeout(timeout);
           if (res.error) return reject(new Error(res.message || res.error));
           this.currentRoom = res.room;
           this.myPlayer = res.player;
@@ -266,6 +288,14 @@ export class OnlineGameClient {
   ): Promise<{ roomId: string; room: RoomPublicState; player: RoomPlayer; roundStarted: boolean }> {
     if (!this.socket) this.connect();
     return new Promise((resolve, reject) => {
+      let isSettled = false;
+      const timeout = setTimeout(() => {
+        if (!isSettled) {
+          isSettled = true;
+          reject(new Error('تعذر الاتصال بخادم القهوة أونلاين. تأكد من تشغيل خادم اللعبة على منفذ 3001'));
+        }
+      }, 6000);
+
       this.socket?.emit(
         'room:quick_match',
         { playerName, mode, autoReady: true },
@@ -278,6 +308,9 @@ export class OnlineGameClient {
           error?: string;
           message?: string;
         }) => {
+          if (isSettled) return;
+          isSettled = true;
+          clearTimeout(timeout);
           if (res.error) return reject(new Error(res.message || res.error));
           this.currentRoom = res.room;
           this.myPlayer = res.player;

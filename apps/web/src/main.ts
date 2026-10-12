@@ -261,7 +261,11 @@ function renderHomeView(app: HTMLElement) {
   });
 
   // أزرار الماتش الأونلاين العشوائي السريع (Quick Match)
-  document.getElementById('btn-quick-match-2p')?.addEventListener('click', async () => {
+  document.getElementById('btn-quick-match-2p')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ جاري البحث عن منافس...</span>';
     try {
       gameModeType = 'ONLINE';
       const res = await onlineClient.quickMatch(homeState.playerName, 'INDIVIDUAL_2P');
@@ -273,10 +277,16 @@ function renderHomeView(app: HTMLElement) {
       render();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
     }
   });
 
-  document.getElementById('btn-quick-match-4p')?.addEventListener('click', async () => {
+  document.getElementById('btn-quick-match-4p')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ جاري البحث عن ترابيزة 4...</span>';
     try {
       gameModeType = 'ONLINE';
       const res = await onlineClient.quickMatch(homeState.playerName, 'TEAM_4P');
@@ -288,6 +298,8 @@ function renderHomeView(app: HTMLElement) {
       render();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
     }
   });
 
@@ -305,7 +317,11 @@ function renderHomeView(app: HTMLElement) {
     render();
   });
 
-  document.getElementById('btn-confirm-create-2p')?.addEventListener('click', async () => {
+  document.getElementById('btn-confirm-create-2p')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ جاري إنشاء الترابيزة...</span>';
     try {
       gameModeType = 'ONLINE';
       await onlineClient.createRoom(homeState.playerName, 'INDIVIDUAL_2P');
@@ -314,10 +330,16 @@ function renderHomeView(app: HTMLElement) {
       render();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
     }
   });
 
-  document.getElementById('btn-confirm-create-4p')?.addEventListener('click', async () => {
+  document.getElementById('btn-confirm-create-4p')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ جاري إنشاء الترابيزة...</span>';
     try {
       gameModeType = 'ONLINE';
       await onlineClient.createRoom(homeState.playerName, 'TEAM_4P');
@@ -326,16 +348,22 @@ function renderHomeView(app: HTMLElement) {
       render();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
     }
   });
 
-  document.getElementById('btn-confirm-join')?.addEventListener('click', async () => {
+  document.getElementById('btn-confirm-join')?.addEventListener('click', async (e) => {
     const input = document.getElementById('input-join-code') as HTMLInputElement | null;
     const code = input?.value.trim().toUpperCase();
     if (!code) {
       alert('من فضلك اكتب كود الترابيزة أولاً!');
       return;
     }
+    const btn = e.currentTarget as HTMLButtonElement;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ جاري الانضمام...</span>';
     try {
       gameModeType = 'ONLINE';
       await onlineClient.joinRoom(code, homeState.playerName);
@@ -344,6 +372,8 @@ function renderHomeView(app: HTMLElement) {
       render();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : String(err));
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
     }
   });
 }

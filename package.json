@@ -9,7 +9,9 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=@ahwtna/web",
+    "dev": "turbo run dev",
+    "dev:web": "npm run dev --workspace=@ahwtna/web",
+    "dev:server": "npm run dev --workspace=@ahwtna/server",
     "play": "npm run build --workspace=@ahwtna/game-engine && node packages/game-engine/dist/cli-play.js",
     "build": "turbo run build",
     "test": "turbo run test",

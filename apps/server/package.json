@@ -5,6 +5,8 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
+    "dev": "tsc && node dist/standalone.js",
+    "start": "node dist/standalone.js",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
