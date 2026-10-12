@@ -28,13 +28,14 @@ export interface ConnectedBoardLayout {
 }
 
 /**
- * حساب تموضع سلسلة الدومينو المتصلة ببعضها هندسياً دون أي فواصل أو فراغات (Real Domino Snake Chain)
- * كل بلاطة تلامس البلاطة السابقة تلامساً حقيقياً طرفاً لطرف
- * وعند الالتفاف تنعطف السلسلة بزاوية قائمة (L-Turn) متصلة بالكامل كقطع الدومينو الحقيقية
+ * حساب تموضع سلسلة الدومينو المتصلة بمسافات آمنة تمنع أي تداخل نهائياً (Collision-Free Domino Chain)
+ * 1. قطع الدبل (مثل 5-5) توضع متعامدة تماماً (بالعرض على الرقم) متمركزة في منتصف المسار
+ * 2. المسارات الأفقية تفصل بينها مسافة رأسية واسعة (120px) تمنع أي تداخل بين الأسطر
+ * 3. الانعطافات تستخدم وصلات رأسية مريحة تربط المسار العلوي بالمسار السفلي بسلاسة
  *
  * @param board حالة طاولة اللعب
  * @param tilesPerLeg عدد البلاطات في كل ضلع أفقي قبل الالتفاف (افتراضي: 4)
- * @param tileSize حجم البلاطة ('sm' بحجم 32px لكل نصف بلاطة أو 'md' بحجم 44px)
+ * @param tileSize حجم البلاطة ('sm' أو 'md')
  */
 export function computeConnectedSnakeLayout(
   board: BoardState,
@@ -54,11 +55,14 @@ export function computeConnectedSnakeLayout(
     };
   }
 
-  // S هو حجم نصف البلاطة (Grid Cell Size)
-  const S = tileSize === 'sm' ? 32 : 44;
-  const safeTilesPerLeg = Math.max(2, tilesPerLeg);
+  // W: عرض/سُمك البلاطة، L: طول البلاطة
+  const W = tileSize === 'sm' ? 32 : 38;
+  const L = W * 2; // 64px في sm، أو 76px في md
+  const laneSpacing = L + W * 1.8; // مسافة رأسية كافية (120px) بين مراكز المسارات لمنع أي تداخل
 
-  // استخراج قيم الأطراف المتصلة (inPip و outPip) لكل بلاطة على طول السلسلة
+  const safeTilesPerLeg = Math.max(3, tilesPerLeg);
+
+  // استخراج تسلسل قيم الأطراف المتصلة (inPip و outPip)
   const connectingPips: { inPip: PipValue; outPip: PipValue }[] = [];
   let prevOut: PipValue = board.leftValue!;
 
@@ -70,28 +74,14 @@ export function computeConnectedSnakeLayout(
     prevOut = outPip;
   }
 
-  interface RawTile {
-    nodeIndex: number;
-    tile: Tile;
-    isDouble: boolean;
-    orientation: 'horizontal' | 'vertical';
-    displayValues: [PipValue, PipValue];
-    gridX: number;
-    gridY: number;
-    gridW: number;
-    gridH: number;
-    isCornerTurn: boolean;
-    isFirst: boolean;
-    isLast: boolean;
-  }
+  const resultTiles: ConnectedSnakeTile[] = [];
 
-  const rawTiles: RawTile[] = [];
-
-  // تتبع الإحداثيات على شبكة الدومينو (بوحدات S)
-  let dir: 'RIGHT' | 'LEFT' = 'RIGHT';
-  let curCol = 0;
-  let curRow = 0;
-  let legCount = 0;
+  let laneIndex = 0;
+  let dir: 1 | -1 = 1; // 1: لليمين، -1: لليسار
+  let curX = 40;
+  let inTurn = false;
+  let turnTilesRemaining = 0;
+  let legTileCount = 0;
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]!;
@@ -100,177 +90,171 @@ export function computeConnectedSnakeLayout(
     const isFirst = i === 0;
     const isLast = i === nodes.length - 1;
 
-    if (dir === 'RIGHT') {
-      // هل حان وقت الالتفاف لأسفل؟
-      if (legCount >= safeTilesPerLeg && i < nodes.length - 1) {
-        // بلاطة زاوية رأسية تلتف لأسفل:
-        // تتصل مباشرة بأسفل النصف الأيمن من البلاطة السابقة (الموجود عند [curCol - 1, curRow])
-        const gridX = curCol - 1;
-        const gridY = curRow + 1;
-        const gridW = 1;
-        const gridH = 2;
-        const orientation: 'horizontal' | 'vertical' = 'vertical';
-        // نصفها العلوي يلامس inPip، ونصفها السفلي يخرج منه outPip
-        const displayValues: [PipValue, PipValue] = [inPip, outPip];
+    const laneY = 40 + laneIndex * laneSpacing;
 
-        rawTiles.push({
-          nodeIndex: i,
-          tile: node.tile,
-          isDouble: double,
-          orientation,
-          displayValues,
-          gridX,
-          gridY,
-          gridW,
-          gridH,
-          isCornerTurn: true,
-          isFirst,
-          isLast,
-        });
+    if (inTurn) {
+      // بلاطة داخل الانعطاف الرأسي لأسفل (Vertical Turn Connector)
+      const orientation: 'horizontal' | 'vertical' = 'vertical';
+      const width = W;
+      const height = L;
+      const x = dir === 1 ? curX - width : curX;
+      // نضع البلاطة الرأسية في المسافة بين المسارين
+      const topY = laneY - laneSpacing + (turnTilesRemaining === 2 ? W : W + L - 8);
+      const y = topY;
+      const displayValues: [PipValue, PipValue] = [inPip, outPip];
 
-        // الضلع التالي يتحرك لليسار ويتصل بأسفل بلاطة الزاوية (عند [curCol - 1, curRow + 2]):
-        curRow = curRow + 2;
-        curCol = curCol - 2;
-        dir = 'LEFT';
-        legCount = 0;
-      } else {
-        // بلاطة مستمرة لليمين (الدبل متعامد رأسياً، والمفرد أفقي)
-        const gridX = curCol;
-        const gridY = curRow;
-        const gridW = double ? 1 : 2;
-        const gridH = double ? 2 : 1;
-        const orientation: 'horizontal' | 'vertical' = double ? 'vertical' : 'horizontal';
-        const displayValues: [PipValue, PipValue] = [inPip, outPip];
+      resultTiles.push({
+        nodeIndex: i,
+        tile: node.tile,
+        isDouble: double,
+        orientation,
+        displayValues,
+        x,
+        y,
+        width,
+        height,
+        isCornerTurn: true,
+        isFirst,
+        isLast,
+      });
 
-        rawTiles.push({
-          nodeIndex: i,
-          tile: node.tile,
-          isDouble: double,
-          orientation,
-          displayValues,
-          gridX,
-          gridY,
-          gridW,
-          gridH,
-          isCornerTurn: false,
-          isFirst,
-          isLast,
-        });
-
-        curCol += gridW;
-        legCount++;
+      turnTilesRemaining--;
+      if (turnTilesRemaining <= 0) {
+        inTurn = false;
+        // عكس الاتجاه وبدء المسار الجديد
+        dir = (dir === 1 ? -1 : 1) as 1 | -1;
+        legTileCount = 0;
       }
     } else {
-      // dir === 'LEFT'
-      // هل حان وقت الالتفاف لأسفل؟
-      if (legCount >= safeTilesPerLeg && i < nodes.length - 1) {
-        // بلاطة زاوية رأسية تلتف لأسفل:
-        // تتصل مباشرة بأسفل النصف الأيسر من البلاطة السابقة (الموجود عند [curCol + 1, curRow])
-        const gridX = curCol + 1;
-        const gridY = curRow + 1;
-        const gridW = 1;
-        const gridH = 2;
+      // فحص هل حان وقت الانعطاف لأسفل
+      const shouldStartTurn = legTileCount >= safeTilesPerLeg && i < nodes.length - 1;
+
+      if (shouldStartTurn) {
+        inTurn = true;
+        turnTilesRemaining = 2; // نستخدم بلاطتين لتغطية الهبوط الرأسي الواسع
+        laneIndex++;
+
+        // أول بلاطة في الانعطاف
         const orientation: 'horizontal' | 'vertical' = 'vertical';
+        const width = W;
+        const height = L;
+        const x = dir === 1 ? curX - width : curX;
+        const topY = laneY + W * 0.5;
+        const y = topY;
         const displayValues: [PipValue, PipValue] = [inPip, outPip];
 
-        rawTiles.push({
+        resultTiles.push({
           nodeIndex: i,
           tile: node.tile,
           isDouble: double,
           orientation,
           displayValues,
-          gridX,
-          gridY,
-          gridW,
-          gridH,
+          x,
+          y,
+          width,
+          height,
           isCornerTurn: true,
           isFirst,
           isLast,
         });
 
-        // الضلع التالي يتحرك لليمين ويتصل بأسفل بلاطة الزاوية:
-        curRow = curRow + 2;
-        curCol = curCol + 2;
-        dir = 'RIGHT';
-        legCount = 0;
+        turnTilesRemaining--;
       } else {
-        // بلاطة مستمرة لليسار (الدبل متعامد رأسياً، والمفرد أفقي)
-        const gridW = double ? 1 : 2;
-        const gridH = double ? 2 : 1;
-        const gridX = double ? curCol : curCol - 1;
-        const gridY = curRow;
-        const orientation: 'horizontal' | 'vertical' = double ? 'vertical' : 'horizontal';
-        const displayValues: [PipValue, PipValue] = double ? [inPip, outPip] : [outPip, inPip];
+        // بلاطة داخل المسار الأفقي
+        if (double) {
+          // في الدومينو الأصيل: الدبل يُوضع متعامداً (بالعرض على الرقم المطلوب)
+          // متمركزاً تماماً في منتصف المسار الأفقي
+          const orientation: 'horizontal' | 'vertical' = 'vertical';
+          const width = W;
+          const height = L;
+          const x = dir === 1 ? curX : curX - width;
+          const y = laneY - L / 2; // متمركز تماماً فوق وتحت خط المنتصف
+          const displayValues: [PipValue, PipValue] = [inPip, outPip];
 
-        rawTiles.push({
-          nodeIndex: i,
-          tile: node.tile,
-          isDouble: double,
-          orientation,
-          displayValues,
-          gridX,
-          gridY,
-          gridW,
-          gridH,
-          isCornerTurn: false,
-          isFirst,
-          isLast,
-        });
+          resultTiles.push({
+            nodeIndex: i,
+            tile: node.tile,
+            isDouble: true,
+            orientation,
+            displayValues,
+            x,
+            y,
+            width,
+            height,
+            isCornerTurn: false,
+            isFirst,
+            isLast,
+          });
 
-        curCol -= gridW;
-        legCount++;
+          curX += dir * width;
+        } else {
+          // بلاطة أفقية عادية
+          const orientation: 'horizontal' | 'vertical' = 'horizontal';
+          const width = L;
+          const height = W;
+          const x = dir === 1 ? curX : curX - width;
+          const y = laneY - W / 2; // متمركزة على خط المنتصف
+          const displayValues: [PipValue, PipValue] = dir === 1
+            ? [inPip, outPip]
+            : [outPip, inPip];
+
+          resultTiles.push({
+            nodeIndex: i,
+            tile: node.tile,
+            isDouble: false,
+            orientation,
+            displayValues,
+            x,
+            y,
+            width,
+            height,
+            isCornerTurn: false,
+            isFirst,
+            isLast,
+          });
+
+          curX += dir * width;
+        }
+
+        legTileCount++;
       }
     }
   }
 
-  // حساب الصندوق المحيط لضبط المحاذاة الموجبة
-  let minGridX = Infinity;
-  let maxGridX = -Infinity;
-  let minGridY = Infinity;
-  let maxGridY = -Infinity;
+  // حساب الصندوق المحيط لضبط المحاذاة الموجبة وتوسيط السلسلة
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
 
-  for (const t of rawTiles) {
-    minGridX = Math.min(minGridX, t.gridX);
-    maxGridX = Math.max(maxGridX, t.gridX + t.gridW);
-    minGridY = Math.min(minGridY, t.gridY);
-    maxGridY = Math.max(maxGridY, t.gridY + t.gridH);
+  for (const t of resultTiles) {
+    minX = Math.min(minX, t.x);
+    maxX = Math.max(maxX, t.x + t.width);
+    minY = Math.min(minY, t.y);
+    maxY = Math.max(maxY, t.y + t.height);
   }
 
-  const offsetX = minGridX < 0 ? -minGridX : 0;
-  const offsetY = minGridY < 0 ? -minGridY : 0;
+  const offsetX = minX < 20 ? 30 - minX : 20;
+  const offsetY = minY < 20 ? 30 - minY : 20;
 
-  const tiles: ConnectedSnakeTile[] = rawTiles.map((t) => {
-    const finalGridX = t.gridX + offsetX;
-    const finalGridY = t.gridY + offsetY;
-    return {
-      nodeIndex: t.nodeIndex,
-      tile: t.tile,
-      isDouble: t.isDouble,
-      orientation: t.orientation,
-      displayValues: t.displayValues,
-      x: finalGridX * S,
-      y: finalGridY * S,
-      width: t.gridW * S,
-      height: t.gridH * S,
-      isCornerTurn: t.isCornerTurn,
-      isFirst: t.isFirst,
-      isLast: t.isLast,
-    };
-  });
+  for (const t of resultTiles) {
+    t.x += offsetX;
+    t.y += offsetY;
+  }
 
-  const totalWidth = (maxGridX - minGridX) * S;
-  const totalHeight = (maxGridY - minGridY) * S;
+  const totalWidth = maxX - minX + 60;
+  const totalHeight = maxY - minY + 60;
 
   // تحديد مواقع أهداف الأطراف المفتوحة
-  const firstTile = tiles[0];
-  const lastTile = tiles[tiles.length - 1];
+  const firstTile = resultTiles[0];
+  const lastTile = resultTiles[resultTiles.length - 1];
 
   let leftTarget: { x: number; y: number; value: PipValue } | null = null;
   let rightTarget: { x: number; y: number; value: PipValue } | null = null;
 
   if (firstTile && board.leftValue !== null) {
     leftTarget = {
-      x: Math.max(0, firstTile.x - 40),
+      x: Math.max(0, firstTile.x - 45),
       y: firstTile.y,
       value: board.leftValue,
     };
@@ -278,14 +262,14 @@ export function computeConnectedSnakeLayout(
 
   if (lastTile && board.rightValue !== null) {
     rightTarget = {
-      x: lastTile.x + lastTile.width + 10,
+      x: lastTile.x + lastTile.width + 12,
       y: lastTile.y,
       value: board.rightValue,
     };
   }
 
   return {
-    tiles,
+    tiles: resultTiles,
     totalWidth,
     totalHeight,
     leftTarget,
