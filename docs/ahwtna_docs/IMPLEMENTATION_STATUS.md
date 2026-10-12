@@ -49,7 +49,7 @@
 | **Stage 5** | Scoring Engine & 101 Limit | ✅ مكتمل | 11/11 tests passed (100%) | ENG-030 إلى ENG-055 (احتساب النقاط والـ 101) |
 | **Stage 6** | Offline AI & Mass Simulation | ✅ مكتمل | 10/10 tests passed (100%) | ENG-070 إلى ENG-074 (محاكاة 1,000 جولة دون deadlock) |
 | **Stage 7** | Egyptian Ahwa Design System | ✅ مكتمل | 20/20 tests passed (100%) | TEST-7.1 إلى TEST-7.3 (البلاطات ونوتة الحساب وWCAG AA) |
-| **Stage 8** | Interactive Domino Table UI | ✅ مكتمل | 13/13 tests passed (100%) | طاولة تفاعلية بالشبكة المنفصلة ومربعات منقطة لاختيار الطرف |
+| **Stage 8** | Interactive Domino Table UI | ✅ مكتمل | 17/17 tests passed (100%) | بوابة الشاشة الرئيسية المصرية + طاولة تفاعلية بالشبكة وخانات منقطة |
 | **Stage 9** | Authoritative Server & Rooms | ⬜ جاهز للبدء | لم تُشغّل بعد | إدارة الغرف والمقاعد في apps/server |
 | **Stage 10** | Real-time Sync & Anti-Cheat | ⬜ لم يبدأ | لم تُشغّل بعد | حجب أيدي الخصوم والقفل المتفائل |
 | **Stage 11** | Multiplayer Web Client | ⬜ لم يبدأ | لم تُشغّل بعد | ربط اللوبي ومؤقت الـ 30 ثانية |
@@ -61,7 +61,7 @@
 ## 🔍 نتائج التحقق الفعلية (Verification Results)
 | الأمر المنفذ | النتيجة الفعلية | الملاحظات |
 |---|---|---|
-| `npm run test` (Turborepo) | ✅ نجح (99/99 tests) | 17 في shared + 49 في game-engine + 20 في ui + 13 في web بنسبة 100% |
+| `npm run test` (Turborepo) | ✅ نجح (103/103 tests) | 17 في shared + 49 في game-engine + 20 في ui + 17 في web بنسبة 100% |
 | `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تجميع الكود المصدري لجميع الحزم بنجاح تام |
 | `npm run typecheck` | ✅ نجح (8/8 tasks) | اجتياز فحص TypeScript الصارم لجميع الحزم بنجاح |
 

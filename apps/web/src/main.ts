@@ -22,6 +22,7 @@ import {
 import { getPlayableEnds, isBoardEmpty } from '@ahwtna/game-engine';
 import { computeSnakeLayout } from './layout/snake-layout.js';
 import { OfflineGameController, type SoundEffect } from './controllers/offline-game-controller.js';
+import { renderHomeScreen, type HomeScreenState } from './screens/home-screen.js';
 
 // حقن الأنماط التراثية للقهوة المصرية
 injectAhwaStyles();
@@ -148,6 +149,17 @@ function playSoundByEvent(sound: SoundEffect) {
   }
 }
 
+// إدارة شاشات التطبيق
+type AppScreen = 'HOME' | 'DOMINO_TABLE';
+let currentScreen: AppScreen = 'HOME';
+
+const homeState: HomeScreenState = {
+  playerName: typeof localStorage !== 'undefined' ? (localStorage.getItem('ahwtna_player_name') || 'صبحي') : 'صبحي',
+  playerTitle: typeof localStorage !== 'undefined' ? (localStorage.getItem('ahwtna_player_title') || 'المعلم') : 'المعلم',
+  activeModal: 'NONE',
+  generatedRoomCode: 'AHW-709',
+};
+
 // إنشاء متحكم اللعبة الأوفلاين
 const controller = new OfflineGameController({
   onUpdate: () => render(),
@@ -157,10 +169,154 @@ const controller = new OfflineGameController({
 // بدء الماتش
 controller.resetMatch();
 
-// دالة تصيير الشاشة التفاعلية
+// دالة الموزع الرئيسي للشاشات
 function render() {
   const app = document.getElementById('app');
   if (!app) return;
+
+  if (currentScreen === 'HOME') {
+    renderHomeView(app);
+  } else {
+    renderDominoTableView(app);
+  }
+}
+
+// دالة تصيير الشاشة الرئيسية (بوابة القهوة المصرية)
+function renderHomeView(app: HTMLElement) {
+  app.innerHTML = renderHomeScreen(homeState, {
+    onStartOffline2P: () => {
+      controller.setGameMode('INDIVIDUAL_2P');
+      controller.resetMatch();
+      currentScreen = 'DOMINO_TABLE';
+      render();
+    },
+    onStartOffline4P: () => {
+      controller.setGameMode('TEAM_4P');
+      controller.resetMatch();
+      currentScreen = 'DOMINO_TABLE';
+      render();
+    },
+    onCreateOnlineRoom: (mode) => {
+      controller.setGameMode(mode);
+      controller.resetMatch();
+      homeState.activeModal = 'NONE';
+      currentScreen = 'DOMINO_TABLE';
+      render();
+    },
+    onJoinOnlineRoom: () => {
+      controller.setGameMode('INDIVIDUAL_2P');
+      controller.resetMatch();
+      homeState.activeModal = 'NONE';
+      currentScreen = 'DOMINO_TABLE';
+      render();
+    },
+  });
+
+  // ربط أحداث الشاشة الرئيسية
+  document.getElementById('btn-open-edit-name')?.addEventListener('click', () => {
+    homeState.activeModal = 'CHANGE_NAME';
+    render();
+  });
+
+  document.getElementById('btn-open-vocab-modal')?.addEventListener('click', () => {
+    homeState.activeModal = 'VOCABULARY';
+    render();
+  });
+
+  document.getElementById('btn-open-create-room-modal')?.addEventListener('click', () => {
+    homeState.generatedRoomCode = `AHW-${Math.floor(100 + Math.random() * 900)}`;
+    homeState.activeModal = 'CREATE_ROOM';
+    render();
+  });
+
+  document.getElementById('btn-open-join-room-modal')?.addEventListener('click', () => {
+    homeState.activeModal = 'JOIN_ROOM';
+    render();
+  });
+
+  document.getElementById('btn-close-modal')?.addEventListener('click', () => {
+    homeState.activeModal = 'NONE';
+    render();
+  });
+
+  document.getElementById('modal-backdrop')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === 'modal-backdrop') {
+      homeState.activeModal = 'NONE';
+      render();
+    }
+  });
+
+  document.getElementById('btn-save-name')?.addEventListener('click', () => {
+    const titleEl = document.getElementById('input-player-title') as HTMLSelectElement | null;
+    const nameEl = document.getElementById('input-player-name') as HTMLInputElement | null;
+    if (titleEl && nameEl) {
+      homeState.playerTitle = titleEl.value;
+      homeState.playerName = nameEl.value.trim() || 'صبحي';
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('ahwtna_player_title', homeState.playerTitle);
+        localStorage.setItem('ahwtna_player_name', homeState.playerName);
+      }
+    }
+    homeState.activeModal = 'NONE';
+    render();
+  });
+
+  document.getElementById('btn-copy-room-code')?.addEventListener('click', () => {
+    const code = homeState.generatedRoomCode || 'AHW-709';
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).catch(() => {});
+    }
+    const btn = document.getElementById('btn-copy-room-code');
+    if (btn) btn.innerText = 'تم نسخ الكود بنجاح! ✓';
+  });
+
+  document.getElementById('btn-start-offline-2p')?.addEventListener('click', () => {
+    controller.setGameMode('INDIVIDUAL_2P');
+    controller.resetMatch();
+    currentScreen = 'DOMINO_TABLE';
+    render();
+  });
+
+  document.getElementById('btn-start-offline-4p')?.addEventListener('click', () => {
+    controller.setGameMode('TEAM_4P');
+    controller.resetMatch();
+    currentScreen = 'DOMINO_TABLE';
+    render();
+  });
+
+  document.getElementById('btn-confirm-create-2p')?.addEventListener('click', () => {
+    controller.setGameMode('INDIVIDUAL_2P');
+    controller.resetMatch();
+    homeState.activeModal = 'NONE';
+    currentScreen = 'DOMINO_TABLE';
+    render();
+  });
+
+  document.getElementById('btn-confirm-create-4p')?.addEventListener('click', () => {
+    controller.setGameMode('TEAM_4P');
+    controller.resetMatch();
+    homeState.activeModal = 'NONE';
+    currentScreen = 'DOMINO_TABLE';
+    render();
+  });
+
+  document.getElementById('btn-confirm-join')?.addEventListener('click', () => {
+    const input = document.getElementById('input-join-code') as HTMLInputElement | null;
+    const code = input?.value.trim();
+    if (!code) {
+      alert('من فضلك اكتب كود الترابيزة أولاً!');
+      return;
+    }
+    controller.setGameMode('INDIVIDUAL_2P');
+    controller.resetMatch();
+    homeState.activeModal = 'NONE';
+    currentScreen = 'DOMINO_TABLE';
+    render();
+  });
+}
+
+// دالة تصيير شاشة طاولة الدومينو التفاعلية
+function renderDominoTableView(app: HTMLElement) {
 
   const userHand = controller.hands[0];
   const isUserTurn = controller.currentTurn === 0 && !controller.matchOver;
@@ -481,8 +637,13 @@ function render() {
         <span style="color: ${AHWA_COLORS.creamPaper}; opacity: 0.8; font-size: 13px;">${DOMINO_VOCABULARY.tagline}</span>
       </div>
 
-      <!-- محول نمط اللعب (فردي / زوجي) -->
+      <!-- زر الرجوع للقهوة ومحول نمط اللعب -->
       <div style="display: flex; align-items: center; gap: 8px;">
+        <button id="btn-back-to-home" style="background: rgba(0,0,0,0.5); color: ${AHWA_COLORS.warmGold};
+                border: 1.5px solid rgba(212,175,55,0.45); border-radius: 9px; padding: 6px 14px; font-weight: 800;
+                font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+          🏠 العودة للقهوة
+        </button>
         <div style="background: rgba(0,0,0,0.4); padding: 3px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid rgba(212,175,55,0.3);">
           <button id="btn-mode-2p" style="background: ${controller.mode === 'INDIVIDUAL_2P' ? AHWA_COLORS.warmGold : 'transparent'};
                                           color: ${controller.mode === 'INDIVIDUAL_2P' ? '#000' : AHWA_COLORS.creamPaper};
@@ -600,6 +761,12 @@ function render() {
     if (controller.selectedTile) {
       controller.playPlayerMove(controller.selectedTile, 'RIGHT');
     }
+  });
+
+  // زر العودة للشاشة الرئيسية
+  document.getElementById('btn-back-to-home')?.addEventListener('click', () => {
+    currentScreen = 'HOME';
+    render();
   });
 
   // النقر على أرضية الطاولة لإلغاء التحديد
