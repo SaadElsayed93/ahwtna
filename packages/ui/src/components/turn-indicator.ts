@@ -36,7 +36,7 @@ export function renderTurnIndicator(props: TurnIndicatorProps): string {
     const circ = 2 * Math.PI * radius;
     const progress = Math.max(0, Math.min(1, timerSeconds / maxTimerSeconds));
     const dashoffset = circ * (1 - progress);
-    const strokeColor = timerSeconds <= 5 ? '#D32F2F' : '#D4AF37';
+    const strokeColor = timerSeconds <= 5 ? '#D32F2F' : timerSeconds <= 12 ? '#FFA726' : '#D4AF37';
 
     timerRingSvg = `
       <svg class="ahwa-turn-timer-ring" width="60" height="60" viewBox="0 0 60 60">
