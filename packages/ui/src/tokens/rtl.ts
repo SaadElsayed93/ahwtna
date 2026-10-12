@@ -52,16 +52,45 @@ export const DOMINO_VOCABULARY = {
   newRound: 'الجولة التالية',
   newMatch: 'ماتش جديد',
 
+  // أرقام الدومينو والنرد التراثية في القهوة المصرية
+  singleNames: {
+    0: 'بيض',
+    1: 'يك',
+    2: 'دوجا',
+    3: 'سيه',
+    4: 'جهار',
+    5: 'بنج',
+    6: 'شيش',
+  } as Record<number, string>,
+
   // أسماء قطع الدبل التراثية في القهاوي المصرية
   doubleNames: {
-    0: 'بلاطين (0-0)',
-    1: 'هاب يك (1-1)',
-    2: 'دوبارة (2-2)',
-    3: 'دوسة (3-3)',
-    4: 'دورجي (4-4)',
-    5: 'دبش (5-5)',
-    6: 'الدوش (6-6)',
+    0: 'بلاطين (بيض)',
+    1: 'هاب يك',
+    2: 'دوبارة',
+    3: 'دوسة',
+    4: 'دورجي',
+    5: 'دبش',
+    6: 'الدش (الدوش)',
   } as Record<number, string>,
 } as const;
+
+/**
+ * الحصول على الاسم الشعبي المصري التراثي لأي بلاطة دومينو
+ * مثلاً: [6|6] -> الدش، [6|5] -> شيش بنج، [4|1] -> جهار يك، [0|0] -> بلاطين (بيض)
+ */
+export function getEgyptianTileName(a: number, b: number): string {
+  const high = Math.max(a, b);
+  const low = Math.min(a, b);
+
+  if (high === low) {
+    return DOMINO_VOCABULARY.doubleNames[high] ?? `دبل ${high}`;
+  }
+
+  const highName = DOMINO_VOCABULARY.singleNames[high] ?? String(high);
+  const lowName = DOMINO_VOCABULARY.singleNames[low] ?? String(low);
+
+  return `${highName} ${lowName}`;
+}
 
 export type DominoVocabularyKey = keyof typeof DOMINO_VOCABULARY;

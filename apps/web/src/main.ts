@@ -2,6 +2,7 @@ import {
   injectAhwaStyles,
   AHWA_COLORS,
   DOMINO_VOCABULARY,
+  getEgyptianTileName,
   renderTileSvg,
   renderAhwaButton,
   renderTurnIndicator,
@@ -166,20 +167,29 @@ function startNewRound() {
   state.modal = null;
 
   if (state.roundNumber === 1) {
+    // الجولة الأولى: صاحب الدش [6|6] (أو أعلى دبل متاح) يفتتح بالدش حصراً
     const opener = determineFirstRoundOpener(deal.hands);
     state.openingTile = opener.startingTile;
     state.currentTurn = opener.starterSeat;
+    const starterName = getEgyptianTileName(opener.startingTile[0], opener.startingTile[1]);
+
     if (opener.starterSeat === 0) {
-      state.statusMessage = `دورك تفتتح الطاولة بأعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}]!`;
-      addFeedEvent('SYSTEM', `بدء الجولة 1: معك أعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}]! اضغط عليه للبدء.`);
+      state.statusMessage = `أنت معك ${starterName} [${opener.startingTile[0]}|${opener.startingTile[1]}]! اضغط عليه لافتتاح الماتش.`;
+      addFeedEvent('SYSTEM', `الجولة الأولى: معك ${starterName}! اضغط عليه لافتتاح الطاولة.`);
     } else {
-      state.statusMessage = `عم شكشك معه أعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}] وسيفتتح الطاولة...`;
-      addFeedEvent('SYSTEM', `بدء الجولة 1: عم شكشك معه أعلى دوش [${opener.startingTile[0]}|${opener.startingTile[1]}] وسيبدأ.`);
+      state.statusMessage = `عم شكشك معه ${starterName} [${opener.startingTile[0]}|${opener.startingTile[1]}] وسيفتتح الماتش...`;
+      addFeedEvent('SYSTEM', `الجولة الأولى: عم شكشك معه ${starterName} وسيبدأ بالدش.`);
     }
   } else {
+    // الجولات التالية (الجولة 2 فما فوق): الفائز بالجولة السابقة يبدأ بأي بلاطة يحبها بكل حرية!
     state.openingTile = null;
-    state.statusMessage = `بدء الجولة ${state.roundNumber}: ${state.currentTurn === 0 ? 'دورك تفتتح الطاولة بأي بلاطة' : 'دور عم شكشك يبدأ'}`;
-    addFeedEvent('SYSTEM', `بدء الجولة ${state.roundNumber}: كل لاعب جهز ورقه.`);
+    if (state.currentTurn === 0) {
+      state.statusMessage = `أنت فائز الجولة السابقة! يحق لك افتتاح الطاولة بأي بلاطة تحبها.`;
+      addFeedEvent('SYSTEM', `الجولة ${state.roundNumber}: أنت صاحب البداية — العب أي بلاطة من يدك!`);
+    } else {
+      state.statusMessage = `عم شكشك فائز الجولة السابقة وسيفتتح الطاولة باختياره...`;
+      addFeedEvent('SYSTEM', `الجولة ${state.roundNumber}: عم شكشك يفتتح الطاولة.`);
+    }
   }
 
   render();
@@ -235,7 +245,7 @@ function checkEndOfRound(): boolean {
         primaryLabel: 'الجولة التالية',
         onPrimary: () => {
           state.roundNumber++;
-          state.currentTurn = winner;
+          state.currentTurn = winner; // الفائز يبدأ الجولة التالية بأي بلاطة
           startNewRound();
         },
         variant: winner === 0 ? 'success' : 'danger',
@@ -280,7 +290,7 @@ function checkEndOfRound(): boolean {
         onPrimary: () => {
           state.roundNumber++;
           if (roundRes.winnerSeat !== undefined) {
-            state.currentTurn = roundRes.winnerSeat;
+            state.currentTurn = roundRes.winnerSeat; // صاحب المجموع الأقل يبدأ
           }
           startNewRound();
         },
@@ -297,7 +307,7 @@ function checkEndOfRound(): boolean {
 function triggerAIMove() {
   if (state.currentTurn !== 1 || state.matchOver) return;
 
-  // إذا كانت الطاولة فارغة في الجولة الأولى: الـ AI يبدأ بقطعة البداية المحددة
+  // إذا كانت الطاولة فارغة في الجولة الأولى: الـ AI يبدأ بقطعة البداية المحددة (الدش)
   if (isBoardEmpty(state.board) && state.roundNumber === 1 && state.openingTile) {
     const starter = state.openingTile;
     sounds.playSlam();
@@ -310,7 +320,8 @@ function triggerAIMove() {
     const moveRes = executePlayerMove(1, starter, 'LEFT', moveCtx);
     state.board = moveRes.newBoard;
     state.p1Hand = [...moveRes.newHand];
-    addFeedEvent('PLAY', `عم شكشك افتتح الطاولة بأعلى دوش [${starter[0]}|${starter[1]}]`);
+    const name = getEgyptianTileName(starter[0], starter[1]);
+    addFeedEvent('PLAY', `عم شكشك افتتح الطاولة بـ ${name} [${starter[0]}|${starter[1]}]`);
     state.currentTurn = 0;
     state.statusMessage = 'دورك الآن — العب بلاطة تطابق أحد طرفي الطاولة!';
     render();
@@ -337,7 +348,8 @@ function triggerAIMove() {
     const moveRes = executePlayerMove(1, playedTile, decision.targetEnd, moveCtx);
     state.board = moveRes.newBoard;
     state.p1Hand = [...moveRes.newHand];
-    addFeedEvent('PLAY', `عم شكشك لعب [${playedTile[0]}|${playedTile[1]}] على ${decision.targetEnd === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
+    const tileName = getEgyptianTileName(playedTile[0], playedTile[1]);
+    addFeedEvent('PLAY', `عم شكشك لعب ${tileName} [${playedTile[0]}|${playedTile[1]}] على ${decision.targetEnd === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
 
     if (checkEndOfRound()) return;
 
@@ -376,11 +388,12 @@ function handleTileClick(tile: Tile) {
     return;
   }
 
-  // في الجولة الأولى والطاولة فارغة: يجب البدء بقطعة البداية المعتمدة
+  // في الجولة الأولى والطاولة فارغة: يجب البدء بقطعة البداية المعتمدة (الدش)
   if (state.roundNumber === 1 && isBoardEmpty(state.board) && state.openingTile) {
     if (!tileEquals(tile, state.openingTile)) {
-      state.statusMessage = `قواعد الدومينو: لازم تبدأ بأعلى دوش معاك [${state.openingTile[0]}|${state.openingTile[1]}]!`;
-      addFeedEvent('SYSTEM', `تنبيه: لازم تلعب [${state.openingTile[0]}|${state.openingTile[1]}] لافتتاح الجولة.`);
+      const name = getEgyptianTileName(state.openingTile[0], state.openingTile[1]);
+      state.statusMessage = `قواعد الدومينو: أول جولة لازم تبدأ بـ ${name} [${state.openingTile[0]}|${state.openingTile[1]}]!`;
+      addFeedEvent('SYSTEM', `تنبيه: لازم تبدأ بـ ${name} لافتتاح الجولة.`);
       render();
       return;
     }
@@ -388,15 +401,17 @@ function handleTileClick(tile: Tile) {
     return;
   }
 
-  // إذا كانت الطاولة فارغة في أي جولة تالية
+  // في أي جولة تالية (2، 3، إلخ) والطاولة فارغة: الفائز يلعب أي بلاطة يختارها بكل حرية!
   if (isBoardEmpty(state.board)) {
     playPlayerTile(tile, 'LEFT');
     return;
   }
 
   const ends = getPlayableEnds(tile, state.board);
+  const tileName = getEgyptianTileName(tile[0], tile[1]);
+
   if (ends.length === 0) {
-    state.statusMessage = `البلاطة [${tile[0]}|${tile[1]}] لا تطابق أي طرف مفتوح (${state.board.leftValue} أو ${state.board.rightValue}).`;
+    state.statusMessage = `البلاطة ${tileName} [${tile[0]}|${tile[1]}] لا تطابق أي طرف مفتوح (${state.board.leftValue} أو ${state.board.rightValue}).`;
     render();
     return;
   }
@@ -406,7 +421,7 @@ function handleTileClick(tile: Tile) {
   } else {
     // تطابق كلا الطرفين: نعرض نافذة الاختيار
     state.selectedTile = tile;
-    state.statusMessage = `اختر الطرف المطلوب للعب [${tile[0]}|${tile[1]}]`;
+    state.statusMessage = `اختر الطرف المطلوب للعب ${tileName} [${tile[0]}|${tile[1]}]`;
     render();
   }
 }
@@ -424,7 +439,8 @@ function playPlayerTile(tile: Tile, end: BoardEnd) {
   state.p0Hand = [...moveRes.newHand];
   state.selectedTile = null;
 
-  addFeedEvent('PLAY', `أنت لعبت [${tile[0]}|${tile[1]}] على ${end === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
+  const tileName = getEgyptianTileName(tile[0], tile[1]);
+  addFeedEvent('PLAY', `أنت لعبت ${tileName} [${tile[0]}|${tile[1]}] على ${end === 'LEFT' ? 'الطرف الأيمن' : 'الطرف الأيسر'}`);
 
   if (checkEndOfRound()) return;
 
@@ -441,8 +457,9 @@ function handlePlayerDraw() {
   sounds.playDraw();
   const drawn = state.boneyard.pop()!;
   state.p0Hand.push(drawn);
-  addFeedEvent('DRAW', `سحبت بلاطة [${drawn[0]}|${drawn[1]}] من المخزون`);
-  state.statusMessage = `سحبت [${drawn[0]}|${drawn[1]}] — هل تناسب اللعب الآن؟`;
+  const drawnName = getEgyptianTileName(drawn[0], drawn[1]);
+  addFeedEvent('DRAW', `سحبت ${drawnName} [${drawn[0]}|${drawn[1]}] من المخزون`);
+  state.statusMessage = `سحبت ${drawnName} — هل تناسب اللعب الآن؟`;
 
   render();
 }
@@ -531,7 +548,7 @@ function render() {
       .join(' ');
   }
 
-  // قطع يد اللاعب
+  // قطع يد اللاعب مع إبراز اسمها الشعبي المصري
   const handHtml = state.p0Hand
     .map((tile) => {
       let isPlayable = false;
@@ -548,6 +565,7 @@ function render() {
       const isSelected = state.selectedTile ? tileEquals(state.selectedTile, tile) : false;
       const tileState: TileState = isSelected ? 'selected' : isPlayable ? 'playable' : 'disabled';
       const tileIdStr = toTileId(tile);
+      const egyptianName = getEgyptianTileName(tile[0], tile[1]);
 
       const tileMarkup = renderTileSvg({
         left: tile[0],
@@ -561,8 +579,12 @@ function render() {
       return `
         <div class="user-hand-tile-wrapper ${isPlayable ? 'is-clickable' : ''}"
              data-id="${tileIdStr}"
-             style="cursor: ${isPlayable ? 'pointer' : 'not-allowed'}; touch-action: manipulation; transition: transform 0.15s ease;">
+             title="${egyptianName} [${tile[0]}|${tile[1]}]"
+             style="display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: ${isPlayable ? 'pointer' : 'not-allowed'}; touch-action: manipulation; transition: transform 0.15s ease;">
           ${tileMarkup}
+          <span style="font-size: 11px; font-weight: 700; color: ${isPlayable ? AHWA_COLORS.warmGold : '#aaa'}; background: rgba(0,0,0,0.55); padding: 2px 6px; border-radius: 4px; border: 1px solid ${isPlayable ? 'rgba(212,175,55,0.45)' : 'rgba(255,255,255,0.1)'}; white-space: nowrap;">
+            ${egyptianName}
+          </span>
         </div>
       `;
     })
@@ -612,12 +634,13 @@ function render() {
   // خيار اختيار الطرف عند النقر على بلاطة تطابق الطرفين
   let chooseEndDialogHtml = '';
   if (state.selectedTile && state.board.leftValue !== null && state.board.rightValue !== null) {
+    const selectedName = getEgyptianTileName(state.selectedTile[0], state.selectedTile[1]);
     chooseEndDialogHtml = `
       <div style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
                   background: ${AHWA_COLORS.walnutWood}; padding: 14px 20px; border-radius: 14px;
                   border: 2px solid ${AHWA_COLORS.warmGold}; box-shadow: 0 8px 30px rgba(0,0,0,0.85);
                   display: flex; gap: 12px; align-items: center; z-index: 100;">
-        <span style="font-weight: 700; color: ${AHWA_COLORS.creamPaper}; font-size: 15px;">العب [${state.selectedTile[0]}|${state.selectedTile[1]}] على:</span>
+        <span style="font-weight: 700; color: ${AHWA_COLORS.creamPaper}; font-size: 15px;">العب ${selectedName} [${state.selectedTile[0]}|${state.selectedTile[1]}] على:</span>
         <button id="btn-play-left" class="ahwa-btn ahwa-btn-gold ahwa-btn-md">الطرف الأيمن (${state.board.leftValue})</button>
         <button id="btn-play-right" class="ahwa-btn ahwa-btn-gold ahwa-btn-md">الطرف الأيسر (${state.board.rightValue})</button>
         <button id="btn-cancel-select" class="ahwa-btn ahwa-btn-wood ahwa-btn-sm">إلغاء</button>
@@ -692,8 +715,8 @@ function render() {
           </div>
         </div>
 
-        <!-- قطع اليد -->
-        <div style="display: flex; gap: 12px; overflow-x: auto; padding: 12px 6px; justify-content: center; align-items: center; min-height: 125px;">
+        <!-- قطع اليد مع أسمائها المصرية -->
+        <div style="display: flex; gap: 12px; overflow-x: auto; padding: 12px 6px; justify-content: center; align-items: center; min-height: 140px;">
           ${handHtml}
         </div>
       </div>

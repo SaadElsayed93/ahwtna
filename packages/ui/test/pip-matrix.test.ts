@@ -79,8 +79,8 @@ describe('TEST-7.1: Domino Pip Matrix & Tile Rendering Engine', () => {
 
     const mixedDesc = getTileArabicDescription(3, 5);
     expect(mixedDesc.isDouble).toBe(false);
-    expect(mixedDesc.title).toContain('تلاتة');
-    expect(mixedDesc.title).toContain('خمسة');
+    expect(mixedDesc.title).toContain('بنج سيه');
+    expect(mixedDesc.title).toContain('[3|5]');
   });
 
   it('should render HTML wrapper with accessible role and interactive tabindex when playable', () => {

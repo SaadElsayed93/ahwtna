@@ -1,5 +1,5 @@
 import type { PipValue } from '@ahwtna/shared';
-import { DOMINO_VOCABULARY } from '../tokens/rtl.js';
+import { getEgyptianTileName } from '../tokens/rtl.js';
 
 export interface PipCoordinate {
   x: number; // نسبة مئوية 0.0 إلى 1.0 بالنسبة لنصف البلاطة
@@ -45,16 +45,6 @@ export const PIP_LAYOUTS: Record<PipValue, readonly PipCoordinate[]> = {
   ],
 };
 
-const ARABIC_DIGIT_NAMES: Record<PipValue, string> = {
-  0: 'صفر (أبيض)',
-  1: 'واحد (يك)',
-  2: 'اتنين (دوجا)',
-  3: 'تلاتة (سيه)',
-  4: 'أربعة (جهار)',
-  5: 'خمسة (بنج)',
-  6: 'ستة (شيش)',
-};
-
 /**
  * الحصول على الاسم التراثي الشعبي المصري للبلاطة مع وصف ARIA
  */
@@ -64,16 +54,11 @@ export function getTileArabicDescription(left: PipValue, right: PipValue): {
   isDouble: boolean;
 } {
   const isDouble = left === right;
-  let title = '';
-  if (isDouble && DOMINO_VOCABULARY.doubleNames[left]) {
-    title = DOMINO_VOCABULARY.doubleNames[left]!;
-  } else {
-    title = `بلاطة [${left}|${right}] — ${ARABIC_DIGIT_NAMES[left]} و ${ARABIC_DIGIT_NAMES[right]}`;
-  }
-
+  const egyptianName = getEgyptianTileName(left, right);
+  const title = `${egyptianName} [${left}|${right}]`;
   const ariaLabel = isDouble
-    ? `دوبل ${left}، ${title}`
-    : `بلاطة دومينو ${left} على ${right}`;
+    ? `دوبل ${left}، ${egyptianName}`
+    : `بلاطة دومينو ${egyptianName} [${left}|${right}]`;
 
   return { title, ariaLabel, isDouble };
 }
