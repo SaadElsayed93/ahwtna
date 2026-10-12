@@ -1,4 +1,7 @@
 import fastify, { type FastifyInstance } from 'fastify';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Server as SocketIOServer, type Socket } from 'socket.io';
 import {
   AHWTNA_VERSION,
@@ -24,6 +27,33 @@ export interface AhwtnaServerOptions {
   host?: string;
   turnTimeoutMs?: number;
   reconnectGraceMs?: number;
+}
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.ttf': 'font/ttf',
+};
+
+function getMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  return MIME_TYPES[ext] || 'application/octet-stream';
 }
 
 export class AhwtnaServer {
@@ -66,6 +96,48 @@ export class AhwtnaServer {
         serverTime: new Date().toISOString(),
       };
     });
+
+    // تقديم ملفات الواجهة الأمامية (SPA) إذا كانت متوفرة بعد البناء
+    const possibleDistPaths = [
+      path.resolve(__dirname, '../../web/dist'),
+      path.resolve(__dirname, '../../../apps/web/dist'),
+      path.resolve(process.cwd(), 'apps/web/dist'),
+    ];
+    const webDistPath = possibleDistPaths.find((p) => fs.existsSync(p));
+
+    if (webDistPath) {
+      const serveStaticFile = (targetFile: string, reply: any) => {
+        const stream = fs.createReadStream(targetFile);
+        reply.type(getMimeType(targetFile));
+        return reply.send(stream);
+      };
+
+      this.fastify.get('/*', async (request, reply) => {
+        const rawUrl = request.raw.url || '';
+        const urlWithoutQuery = rawUrl.split('?')[0] || '/';
+        const reqPath = urlWithoutQuery.replace(/^\/+/, '');
+
+        // منع التداخل مع مسارات الـ API أو Socket.IO أو health
+        if (reqPath.startsWith('api') || reqPath.startsWith('socket.io') || reqPath === 'health') {
+          return reply.status(404).send({ error: 'NOT_FOUND', message: 'المسار غير موجود' });
+        }
+
+        const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
+        const targetPath = path.join(webDistPath, safePath);
+
+        if (reqPath && fs.existsSync(targetPath) && fs.statSync(targetPath).isFile()) {
+          return serveStaticFile(targetPath, reply);
+        }
+
+        // SPA Fallback: إذا كان المسار الرئيسي أو مسار صفحة فرعية، أرجع index.html
+        const indexPath = path.join(webDistPath, 'index.html');
+        if (fs.existsSync(indexPath)) {
+          return serveStaticFile(indexPath, reply);
+        }
+
+        return reply.status(404).send({ error: 'NOT_FOUND', message: 'ملف index.html غير متوفر' });
+      });
+    }
 
     // إنشاء غرفة عبر الـ REST API
     this.fastify.post('/api/rooms', async (request, reply) => {

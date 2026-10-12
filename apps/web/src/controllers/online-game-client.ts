@@ -43,9 +43,16 @@ export class OnlineGameClient {
 
   constructor(options?: OnlineClientOptions) {
     this.onSound = options?.onSound;
-    // تحديد عنوان السيرفر تلقائياً
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    this.serverUrl = options?.serverUrl || `http://${host}:3001`;
+    // تحديد عنوان السيرفر تلقائياً بحسب البيئة (تطوير محلي أم استضافة سحابية)
+    const envUrl = (typeof import.meta !== 'undefined' && (import.meta as { env?: { VITE_SERVER_URL?: string } }).env?.VITE_SERVER_URL) as string | undefined;
+    const isDevPort = typeof window !== 'undefined' && (window.location.port === '3000' || window.location.port === '5173');
+    const defaultUrl = isDevPort
+      ? `http://${window.location.hostname}:3001`
+      : typeof window !== 'undefined'
+        ? window.location.origin
+        : 'http://localhost:3001';
+
+    this.serverUrl = options?.serverUrl || envUrl || defaultUrl;
 
     if (options?.autoConnect !== false) {
       this.connect();

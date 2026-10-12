@@ -14,6 +14,7 @@
     "dev:server": "npm run dev --workspace=@ahwtna/server",
     "play": "npm run build --workspace=@ahwtna/game-engine && node packages/game-engine/dist/cli-play.js",
     "build": "turbo run build",
+    "start": "node apps/server/dist/standalone.js",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
