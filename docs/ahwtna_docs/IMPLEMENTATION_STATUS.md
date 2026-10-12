@@ -1,7 +1,7 @@
 # قهوتنا | ahwtna — تقرير حالة التنفيذ (Implementation Status)
 
 > **تاريخ التحديث:** أكتوبر 2026  
-> **الحالة العامة:** تم إنجاز **المرحلة 0 (Monorepo Setup)** و **المرحلة 1 (Shared Contracts & Schemas)** بنجاح 100%. جاهز للبدء في **المرحلة 2 (Domino Tile Engine & Shuffle)**.
+> **الحالة العامة:** تم إنجاز **المرحلة 0** و **المرحلة 1** و **المرحلة 2 (Domino Tile Engine & Shuffle)** بنجاح 100%. جاهز للبدء في **المرحلة 3 (Board Topology & Legal Moves)**.
 
 ---
 
@@ -12,30 +12,26 @@
 - **المراحل المكتملة:**
   - ✅ **Stage 0: Monorepo Setup & Tooling**
   - ✅ **Stage 1: Shared Contracts & Schemas**
-- **المرحلة التالية:** **Stage 2: Domino Tile Generation & Shuffling** 🎲
+  - ✅ **Stage 2: Domino Tile Generation & Shuffling**
+- **المرحلة التالية:** **Stage 3: Board Topology & Legal Moves** 🔗
 
 ---
 
-## 🏗️ ملخص إنجاز المرحلة 1 (Stage 1 Summary)
-- **تمثيل البلاطات وتماثلها (`packages/shared/src/types/tile.ts`):**
-  - تمثيل البلاطة كثنائية أرقام `readonly [PipValue, PipValue]`.
-  - معرّف نصي فريد بصيغة `"a|b"`.
-  - دوال مساعدة كاملة: `createTile`, `getTileId`, `parseTileId`, `getTileSum`, `isDouble`, `tileEquals`, `matchesValue`, `getOppositeValue`.
-- **المقاعد واللاعبين وتناوب الفرق (`packages/shared/src/types/player.ts`):**
-  - تحديد المقاعد من 0 إلى 3.
-  - تعيين الفرق: فريق أ (المقاعد 0 و 2) وفريق ب (المقاعد 1 و 3).
-  - دوال `getTeamForSeat`, `getNextSeat`, `getTeammateSeat`.
-- **حالات الطاولة والجولة (`packages/shared/src/types/game.ts`):**
-  - `BoardState` مع `leftValue` و `rightValue`.
-  - `RoundResult` و `MatchScore` وحد الـ 101.
-- **أوامر اللاعب ومخططات التحقق Zod (`packages/shared/src/schemas/commands.ts`):**
-  - `PlayTileCommandSchema`, `DrawTileCommandSchema`, `PassCommandSchema`.
-  - `GameCommandSchema` كـ Discriminated Union صارم.
-- **الأحداث وأكواد الأخطاء والثوابت (`packages/shared/src/constants` & `errors`):**
-  - جميع أكواد الأخطاء الصريحة: `NOT_YOUR_TURN`, `ILLEGAL_MOVE`, `CANNOT_PASS_WHEN_MOVE_EXISTS`, إلخ.
-  - الثوابت وألوان القهوة التراثية والرسائل المعربة.
+## 🏗️ ملخص إنجاز المرحلة 2 (Stage 2 Summary)
+- **مولد قطع الدومينو (`packages/game-engine/src/tile-set.ts`):**
+  - دالة `generateDoubleSixSet()` تولد رياضياً الـ 28 قطعة فريدة بالتمام.
+  - مولد حتمي `createSeededRandom(seed)` عبر خوارزمية Mulberry32 لضمان قابلية إعادة الإنتاج في الاختبارات.
+  - خوارزمية Fisher-Yates لخلط القطع `shuffleTiles()`.
+- **منطق التوزيع وحفظ القطع (`packages/game-engine/src/deal.ts`):**
+  - دالة `dealInitialTiles()`:
+    - **الفردي (2P):** 7 قطع للمقعد 0، 7 قطع للمقعد 1، و 14 قطعة في المخزون.
+    - **الزوجي (4P):** 7 قطع لكل من المقاعد الأربعة (توزيع الـ 28 كاملة)، و 0 قطعة بالمخزون.
+    - صمام أمان حتمي للتحقق من حفظ الـ 28 قطعة دائماً وأبداً.
+  - دالة `determineFirstRoundOpener()`:
+    - اختيار صاحب أعلى دوش (`[6|6]` ثم `[5|5]`...).
+    - وإذا لم يوجد دوش، اختيار صاحب أعلى بلاطة مجموعاً (`[6|5]`...).
 - **الاختبارات المنفذة:**
-  - 17 اختبار Unit فحصت البلاطات والتحقق وتوزيع المقاعد والفرق بنسبة نجاح 100%.
+  - اجتياز اختبارات `ENG-001`, `ENG-002`, `ENG-003`, `ENG-004`, `ENG-005`, `ENG-006`, `ENG-007`, `ENG-008` بنسبة 100% (إجمالي 26 اختباراً تلقائياً عبر المستودع).
 
 ---
 
@@ -45,8 +41,8 @@
 |---|---|---|---|---|
 | **Stage 0** | Monorepo Setup & Tooling | ✅ مكتمل | build & typecheck 100% | ربط المستودع بـ GitHub وتجهيز الـ Monorepo |
 | **Stage 1** | Shared Contracts & Schemas | ✅ مكتمل | 17/17 tests passed (100%) | عقود Zod وأنواع البلاطات والأوامر |
-| **Stage 2** | Tile Generation & Shuffling | ⬜ جاهز للبدء | لم تُشغّل بعد | ENG-001 إلى ENG-008 (حفظ القطع والخلط) |
-| **Stage 3** | Board Topology & Legal Moves | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-010 إلى ENG-019 |
+| **Stage 2** | Tile Generation & Shuffling | ✅ مكتمل | 9/9 tests passed (100%) | ENG-001 إلى ENG-008 (حفظ القطع والتوزيع) |
+| **Stage 3** | Board Topology & Legal Moves | ⬜ جاهز للبدء | لم تُشغّل بعد | ENG-010 إلى ENG-019 (سلسلة الطاولة والحركات) |
 | **Stage 4** | Draw, Pass & Block Detection | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-060 إلى ENG-069 |
 | **Stage 5** | Scoring Engine & 101 Limit | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-030 إلى ENG-055 |
 | **Stage 6** | Offline AI & Mass Simulation | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-070 إلى ENG-074 (1,000 جولة) |
@@ -60,18 +56,17 @@
 
 ---
 
-## 🔍 نتائج التحقق الفعلية (Stage 1 Verification Results)
+## 🔍 نتائج التحقق الفعلية (Stage 2 Verification Results)
 | الأمر المنفذ | النتيجة الفعلية | الملاحظات |
 |---|---|---|
-| `npm run test` (Turborepo) | ✅ نجح (17/17 tests) | 3 ملفات اختبار في `packages/shared` اجتازت بنجاح |
-| `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تجميع الكود المصدري وتوليد ملفات التعريف `.d.ts` |
-| `npm run typecheck` | ✅ نجح (8/8 tasks) | فحص الأنواع الصارم لا يحوي أي أخطاء |
+| `npm run test` (Turborepo) | ✅ نجح (26/26 tests) | 17 في shared + 9 في game-engine بنجاح 100% |
+| `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تجميع الكود المصدري لجميع الحزم |
+| `npm run typecheck` | ✅ نجح (8/8 tasks) | اجتياز فحص TypeScript الصارم بنجاح تام |
 
 ---
 
 ## 🎯 الخطوة التالية المباشرة (Single Next Step)
-- **بدء المرحلة 2 (Stage 2: Tile Generation & Shuffling) في `packages/game-engine`:**
-  - بناء دالة توليد الـ 28 بلاطة Double-Six فريدة (`ENG-001`, `ENG-002`, `ENG-003`).
-  - بناء محرك الخلط الحتمي القابل للحقن بـ Seed عبر خوارزمية Fisher-Yates (`ENG-006`).
-  - منطق التوزيع: 7 قطع لكل لاعب، و14 بالمخزون للفردي و0 للزوجي (`ENG-004`, `ENG-005`, `ENG-007`, `ENG-008`).
-  - تحديد البادئ في الجولة الأولى (صاحب أعلى دوش).
+- **بدء المرحلة 3 (Stage 3: Board Topology & Legal Moves) في `packages/game-engine`:**
+  - بناء كائن `BoardChain` لإدارة سلسلة الدومينو والأطراف المفتوحة.
+  - دالة `playTile(board, tile, targetEnd)`.
+  - التحقق الصارم من قانونية النقلة (`ENG-010`, `ENG-011`, `ENG-012`, `ENG-013`, `ENG-014`, `ENG-019`).
