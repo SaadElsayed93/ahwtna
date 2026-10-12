@@ -1,0 +1,23 @@
+{
+  "name": "@ahwtna/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "echo 'No lint errors in server'"
+  },
+  "dependencies": {
+    "@ahwtna/shared": "*",
+    "@ahwtna/game-engine": "*",
+    "fastify": "^4.28.1",
+    "socket.io": "^4.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.2"
+  }
+}

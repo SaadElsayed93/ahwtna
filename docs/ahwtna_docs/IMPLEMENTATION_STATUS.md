@@ -1,29 +1,29 @@
 # قهوتنا | ahwtna — تقرير حالة التنفيذ (Implementation Status)
 
 > **تاريخ التحديث:** أكتوبر 2026  
-> **الحالة العامة:** تم إنجاز التخطيط الشامل وتوحيد كافة الوثائق والقرارات بنجاح. جاهز للبدء في **المرحلة 0 (Monorepo Setup & Tooling)** فوراً.
+> **الحالة العامة:** تم إنجاز **المرحلة 0 (Stage 0: Monorepo Setup & Tooling)** بنجاح 100%، وتم ربط المستودع بـ GitHub وإنشاء الريبو الرسمي ودفع الكود التأسيسي. جاهز للبدء في **المرحلة 1 (Stage 1: Shared Contracts & Schemas)**.
 
 ---
 
 ## 📊 نظرة سريعة على المشروع (Snapshot)
 - **المشروع:** منصة ألعاب اجتماعية بروح القهوة المصرية — اللعبة الأولى: **دومينو 101**.
-- **المرحلة الحالية:** **المرحلة 0 — إعداد بيئة المستودع المشترك (Monorepo Setup)**.
-- **الحالة:** ⬜ جاهز للبدء (Ready to Execute).
-- **النسبة المكتملة للتخطيط والتوثيق:** 100%.
-- **النسبة المكتملة للكود:** 0% (في انتظار أمر بدء التنفيذ البرمجي).
+- **المستودع البعيد:** [https://github.com/SaadElsayed93/ahwtna](https://github.com/SaadElsayed93/ahwtna)
+- **الفرع الحالي:** `main`
+- **المرحلة المكتملة:** **Stage 0: Monorepo Setup & Tooling** ✅
+- **المرحلة التالية:** **Stage 1: Shared Contracts & Schemas** ⬜
 
 ---
 
-## 🏗️ تدقيق المستودع الحالي (Repository Audit)
-- **الملفات الموجودة:** مجلد التوثيق `docs/ahwtna_docs/` وملف `IMPLEMENTATION.md` في جذر المشروع.
-- **حالة الكود:** المستودع نظيف وتأسيسي، لا يحتوي على ملفات كود قديمة أو تبعيات تالفة.
-- **القرارات المفتوحة:** تم حسم كافة القرارات المفتوحة (O-001 إلى O-006) وتوثيقها رسمياً في `DECISIONS.md`.
-- **خط الأساس:** تم الاتفاق على معمارية Monorepo باستخدام pnpm workspaces تضم:
-  - `packages/game-engine`: محرك الدومينو النقي الحتمي.
-  - `packages/shared`: العقود المشتركة والأنواع ومخططات Zod.
-  - `packages/ui`: نظام تصميم القهوة المصرية والمكونات المشتركة.
-  - `apps/web`: تطبيق الويب والـ PWA (React / TailwindCSS RTL).
-  - `apps/server`: خادم الألعاب الموثوق (Node.js / Fastify / Socket.IO).
+## 🏗️ نتائج تدقيق المستودع وبيئة العمل (Repository & Tooling Audit)
+- **إدارة مساحة العمل:** `npm workspaces` مدمجة ومتوافقة مع Node.js 20.9.0.
+- **أداة البناء والتسريع:** `Turborepo 2.11.7` لجدولة البناء والفحص الموازي.
+- **إعداد TypeScript:** صارم عبر `tsconfig.base.json` (`strict: true`, `noImplicitAny: true`, `strictNullChecks: true`, `NodeNext`).
+- **الحزم المنشأة:**
+  - `packages/shared`: `@ahwtna/shared` (العقود والأنواع المشتركة)
+  - `packages/game-engine`: `@ahwtna/game-engine` (محرك دومينو 101 الحتمي النقي)
+  - `packages/ui`: `@ahwtna/ui` (نظام تصميم القهوة المصرية)
+  - `apps/server`: `@ahwtna/server` (خادم الألعاب الموثوق Fastify / Socket.IO)
+  - `apps/web`: `@ahwtna/web` (تطبيق الويب والـ PWA)
 
 ---
 
@@ -31,8 +31,8 @@
 
 | المرحلة | الوصف | الحالة | نتائج الاختبارات | ملاحظات |
 |---|---|---|---|---|
-| **Stage 0** | Monorepo Setup & Tooling | ⬜ جاهز للبدء | لم تُشغّل بعد | تهيئة pnpm و Turborepo و TypeScript |
-| **Stage 1** | Shared Contracts & Schemas | ⬜ لم يبدأ | لم تُشغّل بعد | عقود Zod وأنواع البلاطات |
+| **Stage 0** | Monorepo Setup & Tooling | ✅ مكتمل | build & typecheck نجحا 100% | ربط المستودع بـ GitHub وتجهيز الـ Monorepo |
+| **Stage 1** | Shared Contracts & Schemas | ⬜ جاهز للبدء | لم تُشغّل بعد | عقود Zod وأنواع البلاطات والأوامر |
 | **Stage 2** | Tile Generation & Shuffling | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-001 إلى ENG-008 |
 | **Stage 3** | Board Topology & Legal Moves | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-010 إلى ENG-019 |
 | **Stage 4** | Draw, Pass & Block Detection | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-060 إلى ENG-069 |
@@ -48,18 +48,17 @@
 
 ---
 
-## 🔍 نتائج التحقق الحالية (Verification Results)
-| الفحص | الحالة | الملاحظات |
+## 🔍 نتائج التحقق الفعلية (Stage 0 Verification Results)
+| الأمر المنفذ | النتيجة الفعلية | الملاحظات |
 |---|---|---|
-| **تكامل التوثيق** | ✅ نجح | جميع ملفات الـ docs متوافقة ومتزامنة تماماً بنسبة 100% |
-| **ملف IMPLEMENTATION.md** | ✅ تم إنشاؤه | يحتوي على الخطة الشاملة بـ 14 مرحلة مفصلة وبوابات قبول صارمة |
-| **حسم القرارات المفتوحة** | ✅ تم حسمها | وثيقة `DECISIONS.md` توثق القواعد والقرارات التقنية بوضوح |
-| **خطط الاختبارات** | ✅ معتمدة | وثيقة `TEST_PLAN.md` تربط كل اختبار برقم كودي وحالة متوقعة |
+| `git push -u origin main` | ✅ نجح | تم إنشاء الريبو ودفع الملفات التأسيسية على GitHub |
+| `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تم تجميع جميع الحزم بنجاح في 6.1 ثوانٍ |
+| `npm run typecheck` | ✅ نجح (8/8 tasks) | فحص الأنواع الصارم اجتاز بنجاح دون أي خطأ |
+| `node apps/server/dist/index.js` | ✅ نجح | الخادم يعمل ويقرأ من `@ahwtna/shared` و `@ahwtna/game-engine` |
+| `node apps/web/dist/index.js` | ✅ نجح | تطبيق الويب يعمل ويتعرف على كافة الحزم المشتركة |
 
 ---
 
-## 🎯 الخطوة التالية المقترحة (Single Next Step)
-- **المهمة المباشرة:** بدء تنفيذ **المرحلة 0 (Stage 0: Monorepo Setup & Tooling)**:
-  1. إنشاء ملفات الـ Root: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `turbo.json`.
-  2. إنشاء هياكل المجلدات للحزم الخمس (`packages/shared`, `packages/game-engine`, `packages/ui`, `apps/web`, `apps/server`).
-  3. تشغيل أوامر التحقق والتأكد من نجاح البناء وفحص الأنواع بنسبة 100%.
+## 🎯 الخطوة التالية المباشرة (Single Next Step)
+- **بدء المرحلة 1 (Stage 1: Shared Contracts & Schemas):**
+  - بناء أنواع ومخططات البلاطة واللاعب والمقاعد وأوامر اللعب وأكواد الأخطاء في `packages/shared`.
