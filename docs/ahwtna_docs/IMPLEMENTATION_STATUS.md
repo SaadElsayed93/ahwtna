@@ -1,7 +1,7 @@
 # قهوتنا | ahwtna — تقرير حالة التنفيذ (Implementation Status)
 
 > **تاريخ التحديث:** أكتوبر 2026  
-> **الحالة العامة:** تم إنجاز **المرحلة 0** و **المرحلة 1** و **المرحلة 2 (Domino Tile Engine & Shuffle)** بنجاح 100%. جاهز للبدء في **المرحلة 3 (Board Topology & Legal Moves)**.
+> **الحالة العامة:** تم إنجاز **المرحلة 0** و **المرحلة 1** و **المرحلة 2** و **المرحلة 3 (Board Topology & Legal Moves)** بنجاح 100%. جاهز للبدء في **المرحلة 4 (Turn Cycle, Draw Policy & Block Check)**.
 
 ---
 
@@ -13,25 +13,25 @@
   - ✅ **Stage 0: Monorepo Setup & Tooling**
   - ✅ **Stage 1: Shared Contracts & Schemas**
   - ✅ **Stage 2: Domino Tile Generation & Shuffling**
-- **المرحلة التالية:** **Stage 3: Board Topology & Legal Moves** 🔗
+  - ✅ **Stage 3: Board Topology & Legal Moves**
+- **المرحلة التالية:** **Stage 4: Turn Cycle, Draw Policy & Block Check** 🔄
 
 ---
 
-## 🏗️ ملخص إنجاز المرحلة 2 (Stage 2 Summary)
-- **مولد قطع الدومينو (`packages/game-engine/src/tile-set.ts`):**
-  - دالة `generateDoubleSixSet()` تولد رياضياً الـ 28 قطعة فريدة بالتمام.
-  - مولد حتمي `createSeededRandom(seed)` عبر خوارزمية Mulberry32 لضمان قابلية إعادة الإنتاج في الاختبارات.
-  - خوارزمية Fisher-Yates لخلط القطع `shuffleTiles()`.
-- **منطق التوزيع وحفظ القطع (`packages/game-engine/src/deal.ts`):**
-  - دالة `dealInitialTiles()`:
-    - **الفردي (2P):** 7 قطع للمقعد 0، 7 قطع للمقعد 1، و 14 قطعة في المخزون.
-    - **الزوجي (4P):** 7 قطع لكل من المقاعد الأربعة (توزيع الـ 28 كاملة)، و 0 قطعة بالمخزون.
-    - صمام أمان حتمي للتحقق من حفظ الـ 28 قطعة دائماً وأبداً.
-  - دالة `determineFirstRoundOpener()`:
-    - اختيار صاحب أعلى دوش (`[6|6]` ثم `[5|5]`...).
-    - وإذا لم يوجد دوش، اختيار صاحب أعلى بلاطة مجموعاً (`[6|5]`...).
+## 🏗️ ملخص إنجاز المرحلة 3 (Stage 3 Summary)
+- **طوبولوجيا السلسلة (`packages/game-engine/src/board.ts`):**
+  - كائن `BoardState` غير القابل للتعديل يحفظ العقد `nodes` والطرفين المفتوحين `leftValue` و `rightValue`.
+  - دالة وضع أول بلاطة في سلسلة فارغة `ENG-016` لتأسيس الطرفين الأيسر والأيمن.
+  - دالة `playTileOnBoard` تدعم الإضافة على اليسار `ENG-010` أو اليمين `ENG-011` مع تدوير البلاطة تلقائياً.
+  - دوال مساعدة: `isBoardEmpty`, `getPlayableEnds`, `hasAnyLegalMove`.
+- **التحقق الشامل من قانونية النقلات (`packages/game-engine/src/move-validator.ts`):**
+  - رفض اللعب في مرحلة غير صالحة `ENG-015` (`INVALID_PHASE`).
+  - رفض اللعب خارج الدور `ENG-014` (`NOT_YOUR_TURN`).
+  - رفض لعب بلاطة ليست في يد اللاعب `ENG-013` (`TILE_NOT_IN_HAND`).
+  - رفض لعب بلاطة لا تطابق الأطراف المفتوحة `ENG-012` (`ILLEGAL_MOVE`).
+  - ثبات الحالة التام عند أي حركة مرفوضة `ENG-019` (Immutability).
 - **الاختبارات المنفذة:**
-  - اجتياز اختبارات `ENG-001`, `ENG-002`, `ENG-003`, `ENG-004`, `ENG-005`, `ENG-006`, `ENG-007`, `ENG-008` بنسبة 100% (إجمالي 26 اختباراً تلقائياً عبر المستودع).
+  - اجتياز اختبارات `ENG-010`, `ENG-011`, `ENG-012`, `ENG-013`, `ENG-014`, `ENG-015`, `ENG-016`, `ENG-019` بنسبة 100% (إجمالي 37 اختباراً تلقائياً عبر المستودع).
 
 ---
 
@@ -42,8 +42,8 @@
 | **Stage 0** | Monorepo Setup & Tooling | ✅ مكتمل | build & typecheck 100% | ربط المستودع بـ GitHub وتجهيز الـ Monorepo |
 | **Stage 1** | Shared Contracts & Schemas | ✅ مكتمل | 17/17 tests passed (100%) | عقود Zod وأنواع البلاطات والأوامر |
 | **Stage 2** | Tile Generation & Shuffling | ✅ مكتمل | 9/9 tests passed (100%) | ENG-001 إلى ENG-008 (حفظ القطع والتوزيع) |
-| **Stage 3** | Board Topology & Legal Moves | ⬜ جاهز للبدء | لم تُشغّل بعد | ENG-010 إلى ENG-019 (سلسلة الطاولة والحركات) |
-| **Stage 4** | Draw, Pass & Block Detection | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-060 إلى ENG-069 |
+| **Stage 3** | Board Topology & Legal Moves | ✅ مكتمل | 11/11 tests passed (100%) | ENG-010 إلى ENG-019 (سلسلة الطاولة والحركات) |
+| **Stage 4** | Draw, Pass & Block Detection | ⬜ جاهز للبدء | لم تُشغّل بعد | ENG-060 إلى ENG-069 (السحب والتمرير والقفلة) |
 | **Stage 5** | Scoring Engine & 101 Limit | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-030 إلى ENG-055 |
 | **Stage 6** | Offline AI & Mass Simulation | ⬜ لم يبدأ | لم تُشغّل بعد | ENG-070 إلى ENG-074 (1,000 جولة) |
 | **Stage 7** | Egyptian Ahwa Design System | ⬜ لم يبدأ | لم تُشغّل بعد | لوحة ألوان القهوة وخطوط RTL |
@@ -56,17 +56,17 @@
 
 ---
 
-## 🔍 نتائج التحقق الفعلية (Stage 2 Verification Results)
+## 🔍 نتائج التحقق الفعلية (Stage 3 Verification Results)
 | الأمر المنفذ | النتيجة الفعلية | الملاحظات |
 |---|---|---|
-| `npm run test` (Turborepo) | ✅ نجح (26/26 tests) | 17 في shared + 9 في game-engine بنجاح 100% |
+| `npm run test` (Turborepo) | ✅ نجح (37/37 tests) | 17 في shared + 20 في game-engine بنجاح 100% |
 | `npm run build` (Turborepo) | ✅ نجح (5/5 packages) | تجميع الكود المصدري لجميع الحزم |
 | `npm run typecheck` | ✅ نجح (8/8 tasks) | اجتياز فحص TypeScript الصارم بنجاح تام |
 
 ---
 
 ## 🎯 الخطوة التالية المباشرة (Single Next Step)
-- **بدء المرحلة 3 (Stage 3: Board Topology & Legal Moves) في `packages/game-engine`:**
-  - بناء كائن `BoardChain` لإدارة سلسلة الدومينو والأطراف المفتوحة.
-  - دالة `playTile(board, tile, targetEnd)`.
-  - التحقق الصارم من قانونية النقلة (`ENG-010`, `ENG-011`, `ENG-012`, `ENG-013`, `ENG-014`, `ENG-019`).
+- **بدء المرحلة 4 (Stage 4: Turn Cycle, Draw Policy & Block Check) في `packages/game-engine`:**
+  - بناء منطق السحب في النمط الفردي `drawTile(...)` وحظر السحب في الزوجي (`ENG-060`, `ENG-068`).
+  - بناء منطق التمرير الإجباري `passTurn(...)` ورفض التمرير عند وجود نقلة (`ENG-061`, `ENG-062`, `ENG-063`, `ENG-069`).
+  - بناء محرك كشف القفلة الشامل `isGameBlocked(...)` بفحص أيدي جميع اللاعبين (`ENG-064`, `ENG-065`, `ENG-067`).
