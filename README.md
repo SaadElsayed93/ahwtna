@@ -3,7 +3,7 @@
 > **منصة ألعاب اجتماعية عربية بروح ودفء القهوة المصرية الأصيلة**  
 > أولى الألعاب التأسيسية: **دومينو 101 (Domino 101)**
 
-[![CI Status](https://img.shields.io/badge/Tests-124%2F124%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
+[![CI Status](https://img.shields.io/badge/Tests-134%2F134%20Passing-2E7D32.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![Build](https://img.shields.io/badge/Build-Passing-0D3B2E.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict%20100%25-D4AF37.svg)](https://github.com/SaadElsayed93/ahwtna)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-SaadElsayed93%2Fahwtna-blue.svg)](https://github.com/SaadElsayed93/ahwtna)
@@ -162,8 +162,8 @@ npm run build       # بناء الكود المصدري لجميع الحزم
 | **Stage 7** | **Egyptian Ahwa Design System & RTL UI** (Pips, Notebook, WCAG AA) | ✅ مكتمل | 20/20 Tests Passing |
 | **Stage 8** | **Interactive Domino Table Web Screen** (`apps/web` مع بوابة الشاشة الرئيسية المصرية وسلسلة متصلة وخانات منقطة) | ✅ مكتمل | 17/17 Tests Passing |
 | **Stage 9** | **Authoritative Game Server & Rooms** (`apps/server` مع Fastify و Socket.IO وأكواد الغرف والمقاعد) | ✅ مكتمل | 21/21 Tests Passing |
-| **Stage 10** | **Real-time Socket Synchronization & Anti-Cheat** | ⬜ جاهز للبدء | لم تُشغّل بعد |
-| **Stage 11** | **Multiplayer Web Client Integration** | ⬜ لم يبدأ | لم تُشغّل بعد |
+| **Stage 10** | **Real-time Socket Synchronization & Anti-Cheat** (`apps/server` مع مؤقت الـ 30 ثانية ونافذة الـ 45 ثانية ومكافحة الغش) | ✅ مكتمل | 31/31 Tests Passing |
+| **Stage 11** | **Multiplayer Web Client Integration** | ⬜ جاهز للبدء | لم تُشغّل بعد |
 | **Stage 12** | **Audio Ambiance, Haptics & PWA Polish** | ⬜ لم يبدأ | لم تُشغّل بعد |
 | **Stage 13** | **Playwright E2E Automation & Master Release Gate** | ⬜ لم يبدأ | لم تُشغّل بعد |
 

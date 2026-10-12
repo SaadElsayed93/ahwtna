@@ -283,6 +283,10 @@ export class GameRoom {
     roundResult?: RoundResult;
     isMatchOver: boolean;
   } {
+    if (this.status === 'ROUND_ENDED' || this.status === 'MATCH_ENDED') {
+      throw new GameError('GAME_ALREADY_FINISHED', 'انتهت الجولة أو المباراة بالفعل ولا يمكن قبول أي حركات إضافية');
+    }
+
     if (this.status !== 'IN_ROUND' || !this.activeRound) {
       throw new GameError('INVALID_PHASE', 'لا توجد جولة نشطة حالياً');
     }
@@ -391,5 +395,63 @@ export class GameRoom {
       this.stateVersion,
       this.roomId
     );
+  }
+
+  public setPlayerConnected(playerId: string, isConnected: boolean): RoomPlayer | undefined {
+    const player = this.players.get(playerId);
+    if (!player) return undefined;
+    const updated: RoomPlayer = { ...player, isConnected };
+    this.players.set(playerId, updated);
+    this.stateVersion++;
+    return updated;
+  }
+
+  public reconnectPlayer(oldPlayerId: string, newSocketId: string): RoomPlayer | undefined {
+    const player = this.players.get(oldPlayerId);
+    if (!player) return undefined;
+
+    this.players.delete(oldPlayerId);
+    const reconnected: RoomPlayer = {
+      ...player,
+      id: newSocketId,
+      isConnected: true,
+    };
+    this.players.set(newSocketId, reconnected);
+
+    const orderIdx = this.playerOrder.indexOf(oldPlayerId);
+    if (orderIdx !== -1) this.playerOrder[orderIdx] = newSocketId;
+    if (this.hostId === oldPlayerId) this.hostId = newSocketId;
+
+    this.stateVersion++;
+    return reconnected;
+  }
+
+  /**
+   * معالجة انسحاب أو انقضاء مهلة إعادة الاتصال للاعب (Forfeit)
+   */
+  public forfeitPlayer(forfeitedSeat: SeatIndex): { matchEndedEvent: MatchEndedEvent } {
+    this.status = 'MATCH_ENDED';
+    let winnerSeat: SeatIndex;
+    let winnerTeam: any;
+
+    if (this.mode === 'INDIVIDUAL_2P') {
+      winnerSeat = (forfeitedSeat === 0 ? 1 : 0) as SeatIndex;
+    } else {
+      winnerSeat = ((forfeitedSeat + 1) % 4) as SeatIndex;
+      winnerTeam = forfeitedSeat === 0 || forfeitedSeat === 2 ? 'TEAM_B' : 'TEAM_A';
+    }
+
+    this.matchWinnerSeat = winnerSeat;
+    this.matchWinnerTeam = winnerTeam;
+
+    const matchEndedEvent: MatchEndedEvent = {
+      type: 'MATCH_ENDED',
+      winnerSeat,
+      winnerTeam,
+      finalScore: this.matchScore,
+    };
+
+    this.stateVersion++;
+    return { matchEndedEvent };
   }
 }

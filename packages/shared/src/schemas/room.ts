@@ -34,8 +34,14 @@ export const LeaveRoomSchema = z.object({
   roomId: RoomCodeSchema,
 });
 
+export const ReconnectRoomSchema = z.object({
+  roomId: RoomCodeSchema,
+  playerId: z.string().trim().min(1, 'معرف اللاعب مطلوب'),
+});
+
 export type ValidatedCreateRoom = z.infer<typeof CreateRoomSchema>;
 export type ValidatedJoinRoom = z.infer<typeof JoinRoomSchema>;
 export type ValidatedChooseSeat = z.infer<typeof ChooseSeatSchema>;
 export type ValidatedToggleReady = z.infer<typeof ToggleReadySchema>;
 export type ValidatedLeaveRoom = z.infer<typeof LeaveRoomSchema>;
+export type ValidatedReconnectRoom = z.infer<typeof ReconnectRoomSchema>;

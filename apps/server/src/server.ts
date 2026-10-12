@@ -11,27 +11,36 @@ import {
   ChooseSeatSchema,
   ToggleReadySchema,
   LeaveRoomSchema,
+  ReconnectRoomSchema,
 } from '@ahwtna/shared';
 import { RoomManager } from './room/room-manager.js';
 import type { GameRoom } from './room/game-room.js';
+import { TurnTimerManager } from './sync/turn-timer.js';
+import { ReconnectManager } from './sync/reconnect-manager.js';
 
 export interface AhwtnaServerOptions {
   port?: number;
   host?: string;
+  turnTimeoutMs?: number;
+  reconnectGraceMs?: number;
 }
 
 export class AhwtnaServer {
   public readonly fastify: FastifyInstance;
   public readonly io: SocketIOServer;
   public readonly roomManager: RoomManager;
+  public readonly turnTimer: TurnTimerManager;
+  public readonly reconnectManager: ReconnectManager;
   private isListening = false;
 
-  constructor() {
+  constructor(options?: AhwtnaServerOptions) {
     this.fastify = fastify({
       logger: false,
     });
 
     this.roomManager = new RoomManager();
+    this.turnTimer = new TurnTimerManager({ timeoutMs: options?.turnTimeoutMs });
+    this.reconnectManager = new ReconnectManager({ gracePeriodMs: options?.reconnectGraceMs });
 
     // إعداد Socket.IO مع دعم CORS المفتوح للعملاء
     this.io = new SocketIOServer(this.fastify.server, {
@@ -194,6 +203,7 @@ export class AhwtnaServer {
 
           if (roundStarted) {
             this.broadcastGameViews(room);
+            this.startTurnTimerForRoom(room);
             this.io.to(`room:${room.roomId}`).emit('game:started', {
               roomId: room.roomId,
               roundNumber: room.currentRoundNumber,
@@ -221,6 +231,9 @@ export class AhwtnaServer {
           }
 
           const { roomId } = parsed.data;
+          this.turnTimer.clearTurnTimer(roomId);
+          this.reconnectManager.cancelPending(roomId, socket.id);
+
           const { room, newHostId, isRoomAbandoned } = this.roomManager.leaveRoom(
             roomId,
             socket.id
@@ -242,7 +255,60 @@ export class AhwtnaServer {
         }
       });
 
-      // 6. تنفيذ أمر لعب موثوق
+      // 6. إعادة الاتصال ومزامنة الحالة الحية (Reconnect & SYNC_STATE)
+      socket.on('room:reconnect', (payload, callback) => {
+        try {
+          const parsed = ReconnectRoomSchema.safeParse(payload);
+          if (!parsed.success) {
+            callback?.({ error: 'INVALID_INPUT', message: parsed.error.issues[0]?.message });
+            return;
+          }
+
+          const { roomId, playerId } = parsed.data;
+          const room = this.roomManager.getRoom(roomId);
+          if (!room) {
+            callback?.({ error: 'ROOM_NOT_FOUND', message: 'الغرفة غير موجودة' });
+            return;
+          }
+
+          const reconnectedPlayer = this.reconnectManager.handleReconnect(
+            room,
+            playerId,
+            socket.id
+          );
+
+          if (!reconnectedPlayer) {
+            callback?.({ error: 'PLAYER_NOT_FOUND', message: 'اللاعب غير مسجل في هذه الغرفة' });
+            return;
+          }
+
+          socket.join(`room:${room.roomId}`);
+
+          // إشعار الآخرين بعودة اللاعب
+          this.io.to(`room:${room.roomId}`).emit('player:reconnected', {
+            playerId: socket.id,
+            seat: reconnectedPlayer.seat,
+          });
+
+          this.broadcastRoomUpdate(room);
+          this.broadcastGameViews(room);
+
+          const clientGameView = room.getClientGameView(reconnectedPlayer.seat);
+          const remainingTurnMs = this.turnTimer.getTimeRemainingMs(room.roomId);
+
+          callback?.({
+            success: true,
+            room: room.getPublicState(),
+            player: reconnectedPlayer,
+            gameView: clientGameView,
+            remainingTurnMs,
+          });
+        } catch (err: unknown) {
+          this.handleSocketError(err, callback);
+        }
+      });
+
+      // 7. تنفيذ أمر لعب موثوق
       socket.on('game:command', (payload, callback) => {
         try {
           const parsed = GameCommandSchema.safeParse(payload);
@@ -266,6 +332,13 @@ export class AhwtnaServer {
           const command = parsed.data as GameCommand;
           const { events, roundResult, isMatchOver } = room.executeCommand(command);
 
+          // إعادة جدولة مؤقت الـ 30 ثانية إذا كانت الجولة مستمرة
+          if (room.status === 'IN_ROUND') {
+            this.startTurnTimerForRoom(room);
+          } else {
+            this.turnTimer.clearTurnTimer(room.roomId);
+          }
+
           // بث الأحداث ومناظر اللعب المسقطة بأمان
           for (const ev of events) {
             this.io.to(`room:${room.roomId}`).emit('game:event', ev);
@@ -286,10 +359,36 @@ export class AhwtnaServer {
         }
       });
 
-      // معالجة انقطاع الاتصال
+      // معالجة انقطاع الاتصال مع نافذة الـ 45 ثانية
       socket.on('disconnect', () => {
         const room = this.roomManager.findRoomByPlayerId(socket.id);
-        if (room) {
+        if (!room) return;
+
+        if (room.status === 'IN_ROUND') {
+          // بدء نافذة الـ 45 ثانية لإعادة الاتصال دون إيقاف الطاولة
+          const player = room.getPlayerById(socket.id);
+          this.reconnectManager.handleDisconnect(room, socket.id, (forfeitedRoom, forfeitedPlayer) => {
+            // انقضاء الـ 45 ثانية دون عودة اللاعب -> انسحاب رسمي (Forfeit)
+            const { matchEndedEvent } = forfeitedRoom.forfeitPlayer(forfeitedPlayer.seat);
+            this.turnTimer.clearTurnTimer(forfeitedRoom.roomId);
+
+            this.io.to(`room:${forfeitedRoom.roomId}`).emit('player:forfeited', {
+              playerId: forfeitedPlayer.id,
+              seat: forfeitedPlayer.seat,
+            });
+            this.io.to(`room:${forfeitedRoom.roomId}`).emit('game:event', matchEndedEvent);
+            this.broadcastRoomUpdate(forfeitedRoom);
+          });
+
+          this.io.to(`room:${room.roomId}`).emit('player:disconnected', {
+            playerId: socket.id,
+            seat: player?.seat,
+            gracePeriodMs: this.reconnectManager.gracePeriodMs,
+          });
+
+          this.broadcastRoomUpdate(room);
+        } else {
+          // خارج الجولة النشطة: يخرج اللاعب مباشرة
           const { newHostId, isRoomAbandoned } = this.roomManager.leaveRoom(
             room.roomId,
             socket.id
@@ -316,6 +415,24 @@ export class AhwtnaServer {
       const message = err instanceof Error ? err.message : 'خطأ غير متوقع في الخادم';
       callback?.({ error: 'INTERNAL_ERROR', message });
     }
+  }
+
+  public startTurnTimerForRoom(room: GameRoom): void {
+    this.turnTimer.startTurnTimer(room, ({ actionType, seat }) => {
+      this.io.to(`room:${room.roomId}`).emit('game:timeout_action', {
+        actionType,
+        seat,
+      });
+
+      this.broadcastGameViews(room);
+      this.broadcastRoomUpdate(room);
+
+      if (room.status === 'IN_ROUND') {
+        this.startTurnTimerForRoom(room);
+      } else {
+        this.turnTimer.clearTurnTimer(room.roomId);
+      }
+    });
   }
 
   public broadcastRoomUpdate(room: GameRoom): void {
@@ -348,6 +465,8 @@ export class AhwtnaServer {
   }
 
   public async close(): Promise<void> {
+    this.turnTimer.clearAll();
+    this.reconnectManager.clearAll();
     if (this.isListening) {
       this.io.close();
       await this.fastify.close();

@@ -8,6 +8,8 @@ export * from './room/code-generator.js';
 export * from './room/authoritative-round.js';
 export * from './room/game-room.js';
 export * from './room/room-manager.js';
+export * from './sync/turn-timer.js';
+export * from './sync/reconnect-manager.js';
 export * from './server.js';
 
 /**
